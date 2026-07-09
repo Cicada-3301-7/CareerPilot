@@ -502,3 +502,93 @@ textarea:focus {
   }
 }
 
+/* ─── Auth pages ─────────────────────────────────────────────────────────── */
+
+.auth-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 40px 36px;
+  border: 1px solid #dce2da;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 24px 64px rgba(35, 50, 42, 0.09);
+}
+
+.auth-header {
+  margin-bottom: 28px;
+}
+
+.auth-header h1 {
+  font-size: clamp(2rem, 6vw, 3rem);
+  margin-bottom: 8px;
+}
+
+.auth-header .subtitle {
+  margin-bottom: 0;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-submit {
+  margin-top: 8px;
+  width: 100%;
+  padding: 13px 20px;
+}
+
+.auth-switch {
+  margin: 20px 0 0;
+  color: #65716b;
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+/* ─── Header user menu ───────────────────────────────────────────────────── */
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-name {
+  color: #44705e;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.logout-button {
+  padding: 7px 14px;
+  border: 1px solid #a8c1b2;
+  border-radius: 999px;
+  color: #1d6249;
+  background: #e8f2ea;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  transition: background 150ms, border-color 150ms;
+}
+
+.logout-button:hover {
+  background: #d4e9db;
+  border-color: #8fb8a3;
+}
