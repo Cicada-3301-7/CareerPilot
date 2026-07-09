@@ -1,8 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api from "./api";
 
 const STATUSES = ["Applied", "OA", "Interview", "Offer", "Rejected"];
 const PRIORITIES = ["Low", "Medium", "High"];
+
+const STATUS_FILTER_OPTIONS = ["All", "Applied", "OA", "Interview", "Offer", "Rejected"];
+const WORK_MODE_OPTIONS     = ["All", "Remote", "Hybrid", "Onsite"];
+const DATE_RANGE_OPTIONS    = ["All Time", "Today", "Last 7 Days", "Last 30 Days"];
+const SORT_OPTIONS = [
+  { value: "newest",     label: "Newest First" },
+  { value: "oldest",     label: "Oldest First" },
+  { value: "company_az", label: "Company A → Z" },
+  { value: "company_za", label: "Company Z → A" },
+  { value: "role_az",    label: "Role A → Z" },
+  { value: "status",     label: "Status" },
+  { value: "deadline",   label: "Upcoming Deadline" },
+];
 
 const initialForm = {
   company: "",
@@ -19,7 +32,6 @@ const getErrorMessage = (error, fallback) =>
 
 const formatDate = (date) => {
   if (!date) return "—";
-
   return new Intl.DateTimeFormat("en", {
     year: "numeric",
     month: "short",
@@ -239,37 +251,76 @@ function Dashboard({ user, onLogout }) {
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState("");
 
+  // ── Search / Filter / Sort state ────────────────────────────────────────────
+  const [searchInput, setSearchInput]   = useState("");   // raw input (instant)
+  const [searchQuery, setSearchQuery]   = useState("");   // debounced value sent to API
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [filterWorkMode, setFilterWorkMode] = useState("All");
+  const [filterDateRange, setFilterDateRange] = useState("All Time");
+  const [sortBy, setSortBy] = useState("newest");
+
+  // Debounce search input — fire API call 350 ms after user stops typing
+  const debounceTimer = useRef(null);
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchInput(val);
+    clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => setSearchQuery(val), 350);
+  };
+
+  // ── Fetch applications (called on mount and on any filter/sort change) ──────
+  const fetchApplications = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const params = {};
+      if (searchQuery.trim())           params.search    = searchQuery.trim();
+      if (filterStatus !== "All")       params.status    = filterStatus;
+      if (filterWorkMode !== "All")     params.workMode  = filterWorkMode;
+      if (filterDateRange !== "All Time") params.dateRange = filterDateRange;
+      if (sortBy !== "newest")          params.sort      = sortBy;
+
+      const { data } = await api.get("/api/applications", { params });
+      setApplications(data);
+    } catch (requestError) {
+      setError(getErrorMessage(requestError, "Could not load applications."));
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, filterStatus, filterWorkMode, filterDateRange, sortBy]);
+
   useEffect(() => {
-    const fetchApplications = async () => {
-      try {
-        const { data } = await api.get("/api/applications");
-        setApplications(data);
-      } catch (requestError) {
-        setError(
-          getErrorMessage(requestError, "Could not load applications.")
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchApplications();
-  }, []);
+  }, [fetchApplications]);
 
+  // ── Stats (always computed from the current result set) ─────────────────────
   const stats = useMemo(() => {
-    const counts = Object.fromEntries(
-      STATUSES.map((status) => [status, 0])
-    );
-
-    applications.forEach((application) => {
-      if (counts[application.status] !== undefined) {
-        counts[application.status] += 1;
-      }
+    const counts = Object.fromEntries(STATUSES.map((s) => [s, 0]));
+    applications.forEach((a) => {
+      if (counts[a.status] !== undefined) counts[a.status] += 1;
     });
-
     return { Total: applications.length, ...counts };
   }, [applications]);
 
+  // ── Active filter count (for clear-all badge) ────────────────────────────
+  const activeFilterCount = [
+    searchQuery.trim() !== "",
+    filterStatus !== "All",
+    filterWorkMode !== "All",
+    filterDateRange !== "All Time",
+    sortBy !== "newest",
+  ].filter(Boolean).length;
+
+  const clearAllFilters = () => {
+    setSearchInput("");
+    setSearchQuery("");
+    setFilterStatus("All");
+    setFilterWorkMode("All");
+    setFilterDateRange("All Time");
+    setSortBy("newest");
+  };
+
+  // ── Form handlers ────────────────────────────────────────────────────────────
   const handleInputChange = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
@@ -280,54 +331,40 @@ function Dashboard({ user, onLogout }) {
     setSubmitting(true);
     setError("");
 
-    const payload = {
-      ...form,
-      deadline: form.deadline || undefined,
-    };
+    const payload = { ...form, deadline: form.deadline || undefined };
 
     try {
       const { data } = await api.post("/api/applications", payload);
+      // Prepend the new card only if it would appear in the current view
       setApplications((current) => [data, ...current]);
       setForm(initialForm);
     } catch (requestError) {
-      setError(
-        getErrorMessage(requestError, "Could not add the application.")
-      );
+      setError(getErrorMessage(requestError, "Could not add the application."));
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleStatusChange = async (id, status) => {
-    const previousStatus = applications.find(
-      (application) => application._id === id
-    )?.status;
+    const previousStatus = applications.find((a) => a._id === id)?.status;
     setUpdatingId(id);
     setError("");
     setApplications((current) =>
-      current.map((application) =>
-        application._id === id ? { ...application, status } : application
-      )
+      current.map((a) => (a._id === id ? { ...a, status } : a))
     );
 
     try {
       const { data } = await api.patch(`/api/applications/${id}`, { status });
       setApplications((current) =>
-        current.map((application) =>
-          application._id === id ? data : application
-        )
+        current.map((a) => (a._id === id ? data : a))
       );
     } catch (requestError) {
       setApplications((current) =>
-        current.map((application) =>
-          application._id === id
-            ? { ...application, status: previousStatus }
-            : application
+        current.map((a) =>
+          a._id === id ? { ...a, status: previousStatus } : a
         )
       );
-      setError(
-        getErrorMessage(requestError, "Could not update the application.")
-      );
+      setError(getErrorMessage(requestError, "Could not update the application."));
     } finally {
       setUpdatingId(null);
     }
@@ -339,13 +376,9 @@ function Dashboard({ user, onLogout }) {
 
     try {
       await api.delete(`/api/applications/${id}`);
-      setApplications((current) =>
-        current.filter((application) => application._id !== id)
-      );
+      setApplications((current) => current.filter((a) => a._id !== id));
     } catch (requestError) {
-      setError(
-        getErrorMessage(requestError, "Could not delete the application.")
-      );
+      setError(getErrorMessage(requestError, "Could not delete the application."));
     } finally {
       setDeletingId(null);
     }
@@ -486,22 +519,135 @@ function Dashboard({ user, onLogout }) {
           </form>
         </section>
 
+        {/* ── Search / Filter / Sort toolbar ──────────────────────────────── */}
         <section className="applications-section">
           <div className="section-heading">
             <div>
               <p className="section-kicker">PIPELINE</p>
               <h2>Your applications</h2>
             </div>
-            {!loading && <p>{applications.length} tracked</p>}
+            {!loading && (
+              <p>{applications.length} result{applications.length !== 1 ? "s" : ""}</p>
+            )}
           </div>
 
+          <div className="toolbar" role="search" aria-label="Search and filter applications">
+            {/* Search */}
+            <div className="search-wrap">
+              <span className="search-icon" aria-hidden="true">⌕</span>
+              <input
+                id="app-search"
+                className="search-input"
+                type="search"
+                placeholder="Search company, role, location, notes…"
+                value={searchInput}
+                onChange={handleSearchChange}
+                aria-label="Search applications"
+              />
+              {searchInput && (
+                <button
+                  className="search-clear"
+                  type="button"
+                  aria-label="Clear search"
+                  onClick={() => { setSearchInput(""); setSearchQuery(""); }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Filters row */}
+            <div className="filter-row">
+              <label className="filter-label">
+                <span>Status</span>
+                <select
+                  id="filter-status"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                >
+                  {STATUS_FILTER_OPTIONS.map((o) => (
+                    <option key={o}>{o}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="filter-label">
+                <span>Work Mode</span>
+                <select
+                  id="filter-workmode"
+                  value={filterWorkMode}
+                  onChange={(e) => setFilterWorkMode(e.target.value)}
+                >
+                  {WORK_MODE_OPTIONS.map((o) => (
+                    <option key={o}>{o}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="filter-label">
+                <span>Date Applied</span>
+                <select
+                  id="filter-daterange"
+                  value={filterDateRange}
+                  onChange={(e) => setFilterDateRange(e.target.value)}
+                >
+                  {DATE_RANGE_OPTIONS.map((o) => (
+                    <option key={o}>{o}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="filter-label">
+                <span>Sort by</span>
+                <select
+                  id="filter-sort"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                >
+                  {SORT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </label>
+
+              {activeFilterCount > 0 && (
+                <button
+                  className="clear-filters-btn"
+                  type="button"
+                  onClick={clearAllFilters}
+                >
+                  Clear all
+                  <span className="filter-count-badge">{activeFilterCount}</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ── Application list ─────────────────────────────────────────── */}
           {loading ? (
             <div className="state-card">Loading applications…</div>
           ) : applications.length === 0 ? (
             <div className="state-card empty-state">
               <span>◎</span>
-              <h3>No applications yet</h3>
-              <p>Add your first opportunity using the form above.</p>
+              {activeFilterCount > 0 ? (
+                <>
+                  <h3>No results found</h3>
+                  <p>Try adjusting your search or filters.</p>
+                  <button
+                    className="primary-button"
+                    type="button"
+                    style={{ marginTop: "12px", display: "inline-block" }}
+                    onClick={clearAllFilters}
+                  >
+                    Clear filters
+                  </button>
+                </>
+              ) : (
+                <>
+                  <h3>No applications yet</h3>
+                  <p>Add your first opportunity using the form above.</p>
+                </>
+              )}
             </div>
           ) : (
             <div className="application-list">

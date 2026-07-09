@@ -22,9 +22,60 @@ const errorResponse = (res, error, fallbackMessage) => {
 
 router.get("/", async (req, res) => {
   try {
-    const applications = await Application.find({ userId: req.userId }).sort({
-      createdAt: -1,
-    });
+    const { search, status, workMode, dateRange, sort } = req.query;
+
+    // Base filter — always scoped to the authenticated user
+    const filter = { userId: req.userId };
+
+    // ── Search ────────────────────────────────────────────────────────────────
+    if (search && search.trim()) {
+      const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      filter.$or = [
+        { company: regex },
+        { role: regex },
+        { location: regex },
+        { notes: regex },
+      ];
+    }
+
+    // ── Status filter ─────────────────────────────────────────────────────────
+    const VALID_STATUSES = ["Applied", "OA", "Interview", "Offer", "Rejected", "Saved"];
+    if (status && status !== "All" && VALID_STATUSES.includes(status)) {
+      filter.status = status;
+    }
+
+    // ── Work Mode filter (derived from location field) ────────────────────────
+    if (workMode && workMode !== "All") {
+      const wmRegex = new RegExp(`\\b${workMode}\\b`, "i");
+      filter.location = wmRegex;
+    }
+
+    // ── Date Applied filter ───────────────────────────────────────────────────
+    if (dateRange && dateRange !== "All Time") {
+      const now = new Date();
+      let from;
+      if (dateRange === "Today") {
+        from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (dateRange === "Last 7 Days") {
+        from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (dateRange === "Last 30 Days") {
+        from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      }
+      if (from) {
+        filter.createdAt = { $gte: from };
+      }
+    }
+
+    // ── Sort ──────────────────────────────────────────────────────────────────
+    let sortStage = { createdAt: -1 }; // default: newest first
+    if (sort === "oldest")        sortStage = { createdAt: 1 };
+    else if (sort === "company_az") sortStage = { company: 1 };
+    else if (sort === "company_za") sortStage = { company: -1 };
+    else if (sort === "role_az")    sortStage = { role: 1 };
+    else if (sort === "status")     sortStage = { status: 1, createdAt: -1 };
+    else if (sort === "deadline")   sortStage = { deadline: 1, createdAt: -1 };
+
+    const applications = await Application.find(filter).sort(sortStage);
     res.status(200).json(applications);
   } catch (error) {
     errorResponse(res, error, "Failed to fetch applications");
