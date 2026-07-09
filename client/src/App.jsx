@@ -28,7 +28,209 @@ const formatDate = (date) => {
   }).format(new Date(date));
 };
 
-function App() {
+// ─── Auth helpers ─────────────────────────────────────────────────────────────
+
+const getStoredUser = () => {
+  try {
+    const raw = localStorage.getItem("cp_user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveAuth = (token, user) => {
+  localStorage.setItem("cp_token", token);
+  localStorage.setItem("cp_user", JSON.stringify(user));
+};
+
+const clearAuth = () => {
+  localStorage.removeItem("cp_token");
+  localStorage.removeItem("cp_user");
+};
+
+// ─── Simple hash router ───────────────────────────────────────────────────────
+
+const getPage = () => {
+  const hash = window.location.hash;
+  if (hash.startsWith("#/register")) return "register";
+  if (hash.startsWith("#/login")) return "login";
+  return "dashboard";
+};
+
+// ─── LoginPage ────────────────────────────────────────────────────────────────
+
+function LoginPage({ onAuth }) {
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleChange = (e) =>
+    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const { data } = await api.post("/api/auth/login", form);
+      saveAuth(data.token, data.user);
+      onAuth(data.user);
+    } catch (err) {
+      setError(getErrorMessage(err, "Login failed. Please try again."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="auth-shell">
+      <div className="auth-card">
+        <div className="auth-header">
+          <p className="eyebrow">WELCOME BACK</p>
+          <h1>CareerPilot</h1>
+          <p className="subtitle">Sign in to your job search dashboard.</p>
+        </div>
+
+        {error && (
+          <div className="error-banner" role="alert">
+            {error}
+            <button type="button" onClick={() => setError("")}>Dismiss</button>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="auth-form">
+          <label>
+            Email
+            <input
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={handleChange}
+              placeholder="you@example.com"
+              required
+              autoFocus
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              placeholder="••••••••"
+              required
+            />
+          </label>
+          <button className="primary-button auth-submit" type="submit" disabled={loading}>
+            {loading ? "Signing in…" : "Sign in"}
+          </button>
+        </form>
+
+        <p className="auth-switch">
+          Don&apos;t have an account?{" "}
+          <a href="#/register">Create one</a>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── RegisterPage ─────────────────────────────────────────────────────────────
+
+function RegisterPage({ onAuth }) {
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleChange = (e) =>
+    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const { data } = await api.post("/api/auth/register", form);
+      saveAuth(data.token, data.user);
+      onAuth(data.user);
+    } catch (err) {
+      setError(getErrorMessage(err, "Registration failed. Please try again."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="auth-shell">
+      <div className="auth-card">
+        <div className="auth-header">
+          <p className="eyebrow">GET STARTED</p>
+          <h1>CareerPilot</h1>
+          <p className="subtitle">Create your free account to start tracking.</p>
+        </div>
+
+        {error && (
+          <div className="error-banner" role="alert">
+            {error}
+            <button type="button" onClick={() => setError("")}>Dismiss</button>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="auth-form">
+          <label>
+            Name
+            <input
+              type="text"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              placeholder="Alex Kim"
+              required
+              autoFocus
+            />
+          </label>
+          <label>
+            Email
+            <input
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={handleChange}
+              placeholder="you@example.com"
+              required
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              placeholder="At least 8 characters"
+              minLength={8}
+              required
+            />
+          </label>
+          <button className="primary-button auth-submit" type="submit" disabled={loading}>
+            {loading ? "Creating account…" : "Create account"}
+          </button>
+        </form>
+
+        <p className="auth-switch">
+          Already have an account?{" "}
+          <a href="#/login">Sign in</a>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+function Dashboard({ user, onLogout }) {
   const [applications, setApplications] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(true);
@@ -159,7 +361,15 @@ function App() {
             Keep every opportunity and next step in one place.
           </p>
         </div>
-        <span className="mvp-badge">MVP</span>
+        <div className="header-right">
+          <span className="mvp-badge">MVP</span>
+          <div className="user-menu">
+            <span className="user-name">{user.name}</span>
+            <button className="logout-button" type="button" onClick={onLogout}>
+              Sign out
+            </button>
+          </div>
+        </div>
       </header>
 
       <main>
@@ -377,6 +587,51 @@ function App() {
       </main>
     </div>
   );
+}
+
+// ─── App (router) ─────────────────────────────────────────────────────────────
+
+function App() {
+  const [user, setUser] = useState(getStoredUser);
+  const [page, setPage] = useState(getPage);
+
+  // Keep page state in sync with the URL hash
+  useEffect(() => {
+    const onHashChange = () => setPage(getPage());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  // If there's no token, always redirect to login
+  useEffect(() => {
+    const token = localStorage.getItem("cp_token");
+    if (!token && page === "dashboard") {
+      window.location.hash = "#/login";
+    }
+  }, [page]);
+
+  const handleAuth = (authenticatedUser) => {
+    setUser(authenticatedUser);
+    window.location.hash = "#/";
+    setPage("dashboard");
+  };
+
+  const handleLogout = () => {
+    clearAuth();
+    setUser(null);
+    window.location.hash = "#/login";
+    setPage("login");
+  };
+
+  if (page === "register") {
+    return <RegisterPage onAuth={handleAuth} />;
+  }
+
+  if (!user || page === "login") {
+    return <LoginPage onAuth={handleAuth} />;
+  }
+
+  return <Dashboard user={user} onLogout={handleLogout} />;
 }
 
 export default App;
