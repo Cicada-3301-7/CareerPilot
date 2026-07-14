@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const env = require("../config/env");
 
 /**
  * Express middleware that verifies the JWT attached in the
@@ -17,7 +18,7 @@ const authenticate = (req, res, next) => {
   const token = authHeader.slice(7); // strip "Bearer "
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, env.jwtSecret);
     req.userId = payload.userId;
     next();
   } catch (err) {

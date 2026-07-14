@@ -2,11 +2,13 @@ const express = require("express");
 const cors = require("cors");
 
 const applicationRoutes = require("../routes/applications");
-const authRoutes = require("../routes/auth");
+const authRoutes = require("./routes/auth.routes");
 const notFound = require("./middleware/notFound");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
+
+app.set("trust proxy", 1);
 
 app.use(cors());
 app.use(express.json());
