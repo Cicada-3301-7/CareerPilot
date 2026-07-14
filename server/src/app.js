@@ -3,6 +3,8 @@ const cors = require("cors");
 
 const applicationRoutes = require("../routes/applications");
 const authRoutes = require("../routes/auth");
+const notFound = require("./middleware/notFound");
+const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
 
@@ -15,5 +17,8 @@ app.get("/", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/applications", applicationRoutes);
+
+app.use(notFound);
+app.use(errorHandler);
 
 module.exports = app;
