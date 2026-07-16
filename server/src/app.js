@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const morgan = require("morgan");
 
 const applicationRoutes = require("./routes/applications.routes");
 const authRoutes = require("./routes/auth.routes");
@@ -8,9 +10,13 @@ const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
 
+const isProduction = process.env.NODE_ENV === "production";
+
 app.set("trust proxy", 1);
 
+app.use(helmet());
 app.use(cors());
+app.use(morgan(isProduction ? "combined" : "dev"));
 app.use(express.json());
 
 app.get("/", (_req, res) => {

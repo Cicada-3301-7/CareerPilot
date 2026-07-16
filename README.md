@@ -36,6 +36,7 @@ Copy-Item .env.example .env
 
 ```env
 MONGODB_URI=mongodb://127.0.0.1:27017/careerpilot
+JWT_SECRET=change-me-to-a-long-random-secret
 PORT=5000
 ```
 
@@ -118,8 +119,9 @@ The deployment layout is:
    - **Runtime:** Node
    - **Build Command:** `npm install`
    - **Start Command:** `npm start`
-4. Add this environment variable in Render:
+4. Add these environment variables in Render:
    - `MONGODB_URI` = the complete Atlas connection string from the previous section
+   - `JWT_SECRET` = a long, random secret (32+ characters) used to sign auth tokens
 5. You do not need to set `PORT`; Render supplies it automatically. The code uses it through `process.env.PORT`.
 6. Deploy and wait for the logs to show the MongoDB connection and listening messages.
 7. Open the assigned Render URL. You should see:
