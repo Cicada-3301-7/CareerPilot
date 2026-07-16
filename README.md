@@ -1,162 +1,234 @@
-# CareerPilot MVP
+# CareerPilot
 
-CareerPilot is a single-user MERN job application tracker. It supports the complete MVP flow: add an application, see pipeline counts, change its status, and delete it.
+CareerPilot is a full-stack job application tracker built on the MERN stack. It lets you capture every application you send out, watch your pipeline at a glance, and keep the details — status, priority, deadlines, notes — organized while you hunt. It is fully multi-user: every account sees only its own data, enforced at the database-query level.
 
-## Project structure
+## Screenshots
+
+> Screenshots coming soon.
+>
+> <!-- ![Dashboard](docs/screenshots/dashboard.png) -->
+> <!-- ![Login](docs/screenshots/login.png) -->
+
+## Tech Stack
+
+**Frontend**
+
+- React 18
+- Vite
+- Axios
+
+**Backend**
+
+- Node.js
+- Express
+- MongoDB
+- Mongoose
+- JWT (jsonwebtoken)
+- Zod
+
+**Testing**
+
+- Jest
+- Supertest (with mongodb-memory-server)
+
+**CI/CD**
+
+- GitHub Actions
+
+**Deployment**
+
+- Render (backend)
+- Vercel (frontend)
+
+## Features
+
+- **User accounts** — registration and login with bcrypt-hashed passwords (cost factor 12)
+- **JWT authentication** — 7-day tokens; every application query is scoped to the authenticated user
+- **Logout from all devices** — token revocation invalidates every previously issued token
+- **Job application CRUD** — create, list, update, and delete applications
+- **Search** — case-insensitive search across company, role, location, and notes (regex-safe)
+- **Filtering** — by status, work mode, and date range (Today / Last 7 Days / Last 30 Days)
+- **Sorting** — newest, oldest, company A–Z/Z–A, role A–Z, status, deadline
+- **Pagination** — opt-in `page`/`limit` query params with a metadata envelope; omitting them returns the full list
+- **Work mode** — structured Remote / Hybrid / Onsite field alongside free-text location
+- **Applied date** — per-application `appliedAt` timestamp, defaulting to creation time
+- **URL validation** — job links must be valid `http(s)` URLs
+- **Health endpoint** — `GET /healthz` reports service and database status
+- **Rate limiting** — login and registration are limited to 10 requests per 15 minutes per IP
+- **Input validation** — strict Zod schemas reject unknown fields (mass-assignment protection)
+- **Centralized error handling** — consistent JSON error responses across the API
+- **Security headers & logging** — Helmet and Morgan configured per environment
+- **Responsive frontend** — single-page dashboard with optimistic status updates and debounced search
+
+## Project Structure
 
 ```text
 careerpilot/
-├── client/        # React + Vite frontend
-├── server/        # Express + Mongoose API
-└── README.md
+├── client/                      # React + Vite frontend
+│   ├── src/
+│   │   ├── App.jsx              # Router, pages, dashboard
+│   │   ├── api.js               # Axios instance with auth interceptors
+│   │   ├── main.jsx
+│   │   └── styles.css
+│   └── vite.config.js
+├── server/                      # Express + Mongoose REST API
+│   ├── src/
+│   │   ├── config/              # Env validation, database connection
+│   │   ├── controllers/         # Request handlers (auth, applications)
+│   │   ├── middleware/          # Auth, validation, rate limiting, errors
+│   │   ├── models/              # Mongoose schemas (User, Application)
+│   │   ├── routes/              # Route definitions (thin, no business logic)
+│   │   ├── validators/          # Zod schemas
+│   │   ├── utils/               # AppError, asyncHandler
+│   │   └── app.js               # Express app wiring (no listen)
+│   ├── tests/                   # Jest + Supertest integration suite
+│   ├── jest.config.js
+│   └── server.js                # Entry point: env → connect → listen
+└── .github/workflows/ci.yml     # CI pipeline
 ```
 
-## Prerequisites
+## Installation
+
+### Prerequisites
 
 - Node.js 18 or newer
 - npm
-- A MongoDB database, either local or on MongoDB Atlas
+- A MongoDB database (local or [MongoDB Atlas](https://www.mongodb.com/atlas))
 
-## Run locally
+### 1. Clone the repository
 
-Open two terminals at the project root.
+```bash
+git clone https://github.com/Cicada-3301-7/CareerPilot.git
+cd CareerPilot
+```
 
-### 1. Configure and start the backend
+### 2. Backend setup
 
 ```bash
 cd server
 npm install
-```
-
-Copy `server/.env.example` to `server/.env`:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-```env
-MONGODB_URI=mongodb://127.0.0.1:27017/careerpilot
-PORT=5000
-```
-
-If you use Atlas locally, replace `MONGODB_URI` with your Atlas connection string.
-
-Start the API:
-
-```bash
+cp .env.example .env   # then edit .env with your values
 npm run dev
 ```
 
-The terminal should show `Connected to MongoDB` and `CareerPilot API listening on port 5000`. You can open `http://localhost:5000` to confirm the API is running.
+The terminal should show `Connected to MongoDB` and `CareerPilot API listening on port 5000`.
 
-### 2. Configure and start the frontend
+### 3. Frontend setup
 
-In the second terminal:
+In a second terminal:
 
 ```bash
 cd client
 npm install
-```
-
-Copy `client/.env.example` to `client/.env`:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-```env
-VITE_API_URL=http://localhost:5000
-```
-
-Start Vite:
-
-```bash
+cp .env.example .env   # then edit .env if your API runs elsewhere
 npm run dev
 ```
 
-Open the local URL Vite prints, normally `http://localhost:5173`.
+Open the URL Vite prints (normally `http://localhost:5173`).
 
-## Test the full local flow
+## Environment Variables
 
-Keep both terminals running, then:
+**`server/.env`** (see `server/.env.example`)
 
-1. **Add:** Complete at least the required Company and Role fields, optionally add the other details, and select **Add application**. The new card should appear first, Total and Applied should each increase by one, and the record should persist after a page refresh.
-2. **Change status:** Change that card's status from Applied to Interview. The card dropdown should update immediately, Applied should decrease by one, Interview should increase by one, and the status should remain Interview after a page refresh.
-3. **Delete:** Select **Delete** on the card. The card should disappear and the Total and Interview counts should each decrease by one. Refresh once more to confirm it stays deleted.
+| Variable | Required | Description |
+| --- | --- | --- |
+| `MONGODB_URI` | Yes | MongoDB connection string. The server exits at startup if unset. |
+| `JWT_SECRET` | Yes | Secret used to sign auth tokens. Use a long, random value (32+ characters). |
+| `PORT` | No | API port. Defaults to `5000`; Render supplies it in production. |
 
-If the UI reports a connection error, confirm the API terminal is still running and that `VITE_API_URL` exactly matches the backend origin. If the API cannot connect, verify the MongoDB URI and Atlas network access settings.
+**`client/.env`** (see `client/.env.example`)
 
-## Deploy
+| Variable | Required | Description |
+| --- | --- | --- |
+| `VITE_API_URL` | Yes | Backend origin, e.g. `http://localhost:5000`. Embedded at build time — rebuild after changing it. |
 
-The deployment layout is:
+## Available Scripts
 
-- MongoDB Atlas hosts the database.
-- Render hosts the Express backend.
-- Vercel hosts the Vite frontend.
+**Backend (`server/`)**
 
-### 1. Create the MongoDB Atlas database
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start the API with nodemon (auto-restart) |
+| `npm start` | Start the API in production mode |
+| `npm test` | Run the full Jest test suite |
 
-1. Create or sign in to a MongoDB Atlas account and create a project.
-2. Create an M0/free cluster if available in your region.
-3. In **Database Access**, create a database user with a strong username and password.
-4. In **Network Access**, add `0.0.0.0/0` so Render can connect from its dynamic outbound IPs. For a production app, replace this with tighter access when your hosting setup supports it.
-5. Open the cluster's **Connect → Drivers** screen and copy the Node.js connection string.
-6. Replace the username, password, and database name. The final value should resemble:
+**Frontend (`client/`)**
 
-   ```text
-   mongodb+srv://USERNAME:PASSWORD@CLUSTER.mongodb.net/careerpilot?retryWrites=true&w=majority
-   ```
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start the Vite dev server |
+| `npm run build` | Production build to `client/dist` |
+| `npm run lint` | Run ESLint |
+| `npm run preview` | Preview the production build |
 
-   URL-encode special characters in the username or password.
+## API Overview
 
-### 2. Deploy the backend to Render
+All `/api/applications` routes and `/api/auth/me` / `/api/auth/logout-all` require an `Authorization: Bearer <token>` header.
 
-1. Push this repository to GitHub, GitLab, or Bitbucket.
-2. In Render, select **New → Web Service** and connect the repository.
-3. Configure the service:
-   - **Root Directory:** `server`
-   - **Runtime:** Node
-   - **Build Command:** `npm install`
-   - **Start Command:** `npm start`
-4. Add this environment variable in Render:
-   - `MONGODB_URI` = the complete Atlas connection string from the previous section
-5. You do not need to set `PORT`; Render supplies it automatically. The code uses it through `process.env.PORT`.
-6. Deploy and wait for the logs to show the MongoDB connection and listening messages.
-7. Open the assigned Render URL. You should see:
-
-   ```json
-   { "message": "CareerPilot API is running" }
-   ```
-
-Copy the backend origin, for example `https://careerpilot-api.onrender.com`, with no trailing `/api` path.
-
-### 3. Deploy the frontend to Vercel
-
-1. In Vercel, select **Add New → Project** and import the same repository.
-2. Configure the project:
-   - **Root Directory:** `client`
-   - **Framework Preset:** Vite
-   - **Build Command:** `npm run build`
-   - **Output Directory:** `dist`
-3. Add this environment variable to the Production environment:
-   - `VITE_API_URL` = the Render backend origin, for example `https://careerpilot-api.onrender.com`
-4. Deploy. Vercel will provide the public frontend URL.
-5. Open the Vercel URL and repeat the add → change status → delete test above.
-
-If `VITE_API_URL` is changed after a deployment, redeploy the frontend because Vite embeds this value at build time. The API intentionally allows all CORS origins for this MVP.
-
-Official deployment references:
-
-- [Connect an application to MongoDB Atlas](https://www.mongodb.com/docs/atlas/driver-connection/)
-- [Deploy a Node/Express app on Render](https://render.com/docs/deploy-node-express-app)
-- [Configure a monorepo root directory on Vercel](https://vercel.com/docs/monorepos)
-- [Deploy Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite)
-
-## API reference
+**Authentication**
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
-| GET | `/api/applications` | List newest applications first |
+| POST | `/api/auth/register` | Create an account, returns a JWT and the user |
+| POST | `/api/auth/login` | Log in, returns a JWT and the user |
+| GET | `/api/auth/me` | Get the current user |
+| POST | `/api/auth/logout-all` | Invalidate all previously issued tokens |
+
+**Applications**
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/api/applications` | List applications. Supports `search`, `status`, `workMode`, `dateRange`, `sort`, and opt-in `page`/`limit` pagination |
 | POST | `/api/applications` | Create an application |
-| PATCH | `/api/applications/:id` | Update any supplied fields |
+| PATCH | `/api/applications/:id` | Update supplied fields |
 | DELETE | `/api/applications/:id` | Delete an application |
+
+**Health**
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/healthz` | Service health and database connection state |
+
+## Testing
+
+The backend ships with **71 automated tests** covering authentication, authorization boundaries, CRUD, search/filter/sort/pagination contracts, validation, rate limiting, and token revocation. Tests run against an in-memory MongoDB instance — no database setup or environment variables required.
+
+```bash
+cd server
+npm test
+```
+
+## CI/CD
+
+Every push and pull request triggers the GitHub Actions workflow (`.github/workflows/ci.yml`), which runs two parallel jobs:
+
+- **client-lint** — installs the frontend and runs ESLint
+- **server-test** — installs the backend and runs the full Jest suite against an in-memory MongoDB
+
+Both jobs must pass for the pipeline to be green.
+
+## Deployment
+
+The production layout is **MongoDB Atlas** (database) + **Render** (API) + **Vercel** (frontend).
+
+**Backend on Render**
+
+1. Create a Web Service from this repository with **Root Directory** `server`, **Build Command** `npm install`, **Start Command** `npm start`.
+2. Set the `MONGODB_URI` and `JWT_SECRET` environment variables. `PORT` is supplied by Render automatically.
+3. Verify the deploy by opening the service URL (`{"message":"CareerPilot API is running"}`) or `/healthz`.
+
+**Frontend on Vercel**
+
+1. Import the repository with **Root Directory** `client`, framework preset **Vite**, output directory `dist`.
+2. Set `VITE_API_URL` to the Render backend origin (no trailing path).
+3. Redeploy the frontend whenever `VITE_API_URL` changes — Vite embeds it at build time.
+
+For Atlas, create a database user, allow network access from your host, and use the standard Node.js connection string (see the [Atlas connection guide](https://www.mongodb.com/docs/atlas/driver-connection/)). Further references: [Deploy Node/Express on Render](https://render.com/docs/deploy-node-express-app), [Deploy Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite).
+
+## Future Improvements
+
+- Resume upload and per-application attachments
+- Email reminders for upcoming deadlines and interviews
+- Analytics dashboard (application funnel, response rates over time)
+- In-app notifications for status changes and stale applications
+- Calendar integration for interviews and follow-ups

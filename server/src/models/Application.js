@@ -28,6 +28,10 @@ const applicationSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    workMode: {
+      type: String,
+      enum: ["Remote", "Hybrid", "Onsite"],
+    },
     status: {
       type: String,
       enum: ["Applied", "OA", "Interview", "Offer", "Rejected"],
@@ -41,6 +45,10 @@ const applicationSchema = new mongoose.Schema(
     deadline: {
       type: Date,
     },
+    appliedAt: {
+      type: Date,
+      default: Date.now,
+    },
     notes: {
       type: String,
       trim: true,
@@ -50,5 +58,9 @@ const applicationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Application", applicationSchema);
+// Every query is user-scoped; these cover the list endpoint's filter+sort shapes.
+applicationSchema.index({ userId: 1, createdAt: -1 }); // default sort, dateRange filter
+applicationSchema.index({ userId: 1, status: 1, createdAt: -1 }); // status filter + status sort
+applicationSchema.index({ userId: 1, deadline: 1, createdAt: -1 }); // deadline sort
 
+module.exports = mongoose.model("Application", applicationSchema);
