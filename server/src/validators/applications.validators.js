@@ -36,6 +36,8 @@ const listQuerySchema = z.object({
   workMode: z.enum(WORK_MODE_VALUES).optional().catch(undefined),
   dateRange: z.enum(DATE_RANGE_VALUES).optional().catch(undefined),
   sort: z.enum(SORT_VALUES).optional().catch(undefined),
+  page: z.coerce.number().int().min(1).optional().catch(undefined),
+  limit: z.coerce.number().int().min(1).max(100).optional().catch(undefined),
 });
 
 module.exports = { createApplicationSchema, updateApplicationSchema, listQuerySchema };

@@ -169,6 +169,101 @@ describe("GET /api/applications", () => {
   });
 });
 
+describe("GET /api/applications pagination", () => {
+  // Sequential creation with small delays so createdAt ordering is deterministic.
+  const createMany = async (token, companies) => {
+    for (const company of companies) {
+      await createApplication(token, { company });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  };
+
+  test("without page/limit the response stays the legacy plain array", async () => {
+    await createMany(userA.token, ["One", "Two"]);
+    const res = await listApplications(userA.token);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(2);
+  });
+
+  test("limit alone returns the envelope with page defaulting to 1", async () => {
+    await createMany(userA.token, ["A", "B", "C", "D", "E"]);
+    const res = await listApplications(userA.token, { limit: 2 });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.page).toBe(1);
+    expect(res.body.limit).toBe(2);
+    expect(res.body.total).toBe(5);
+    expect(res.body.totalPages).toBe(3);
+  });
+
+  test("page + limit return the correct slice under newest-first sort", async () => {
+    await createMany(userA.token, ["A", "B", "C", "D", "E"]);
+    const res = await listApplications(userA.token, { page: 2, limit: 2 });
+    expect(res.status).toBe(200);
+    // Newest first: page 1 = [E, D], page 2 = [C, B].
+    expect(res.body.data.map((a) => a.company)).toEqual(["C", "B"]);
+    expect(res.body.page).toBe(2);
+    expect(res.body.total).toBe(5);
+  });
+
+  test("page alone returns the envelope with the default limit of 20", async () => {
+    await createMany(userA.token, ["Solo"]);
+    const res = await listApplications(userA.token, { page: 1 });
+    expect(res.status).toBe(200);
+    expect(res.body.limit).toBe(20);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.totalPages).toBe(1);
+  });
+
+  test("invalid page/limit values degrade to the unpaginated array (Phase 4 contract)", async () => {
+    await createMany(userA.token, ["One", "Two"]);
+    const res = await listApplications(userA.token, { page: 0, limit: "abc" });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(2);
+  });
+
+  test("limit above the cap of 100 degrades to the unpaginated array", async () => {
+    await createMany(userA.token, ["One", "Two"]);
+    const res = await listApplications(userA.token, { limit: 101 });
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(2);
+  });
+
+  test("pagination composes with filters and stays user-scoped", async () => {
+    await createApplication(userA.token, { company: "Match", status: "Applied" });
+    await createApplication(userA.token, { company: "Other", status: "Interview" });
+    await createApplication(userB.token, { company: "NotMine", status: "Applied" });
+
+    const res = await listApplications(userA.token, { status: "Applied", limit: 1 });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].company).toBe("Match");
+    expect(res.body.total).toBe(1);
+  });
+
+  test("a page beyond the data returns an empty page, not an error", async () => {
+    await createMany(userA.token, ["One", "Two"]);
+    const res = await listApplications(userA.token, { page: 99, limit: 10 });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+    expect(res.body.total).toBe(2);
+    expect(res.body.totalPages).toBe(1);
+  });
+});
+
+describe("Application indexes", () => {
+  test("the compound indexes are declared and built", async () => {
+    const indexes = await Application.collection.indexes();
+    const keys = indexes.map((index) => JSON.stringify(index.key));
+    expect(keys).toContain(JSON.stringify({ userId: 1, createdAt: -1 }));
+    expect(keys).toContain(JSON.stringify({ userId: 1, status: 1, createdAt: -1 }));
+    expect(keys).toContain(JSON.stringify({ userId: 1, deadline: 1, createdAt: -1 }));
+  });
+});
+
 describe("PATCH /api/applications/:id", () => {
   test("updates status only (the frontend's optimistic-update payload)", async () => {
     const created = await createApplication(userA.token);

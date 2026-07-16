@@ -55,8 +55,31 @@ const list = asyncHandler(async (req, res) => {
   else if (sort === "status")     sortStage = { status: 1, createdAt: -1 };
   else if (sort === "deadline")   sortStage = { deadline: 1, createdAt: -1 };
 
-  const applications = await Application.find(filter).sort(sortStage);
-  res.status(200).json(applications);
+  // ── Pagination (opt-in) ───────────────────────────────────────────────────
+  // Without valid page/limit params the response stays the legacy plain array.
+  const { page, limit } = req.query;
+  if (page === undefined && limit === undefined) {
+    const applications = await Application.find(filter).sort(sortStage);
+    return res.status(200).json(applications);
+  }
+
+  const pageNum = page ?? 1;
+  const pageSize = limit ?? 20;
+  const [applications, total] = await Promise.all([
+    Application.find(filter)
+      .sort(sortStage)
+      .skip((pageNum - 1) * pageSize)
+      .limit(pageSize),
+    Application.countDocuments(filter),
+  ]);
+
+  res.status(200).json({
+    data: applications,
+    page: pageNum,
+    limit: pageSize,
+    total,
+    totalPages: Math.ceil(total / pageSize) || 1,
+  });
 });
 
 const create = asyncHandler(async (req, res) => {
