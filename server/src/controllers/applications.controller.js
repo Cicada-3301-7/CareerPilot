@@ -24,10 +24,12 @@ const list = asyncHandler(async (req, res) => {
     filter.status = status;
   }
 
-  // ── Work Mode filter (derived from location field) ────────────────────────
+  // ── Work Mode filter ──────────────────────────────────────────────────────
+  // Matches the structured workMode field or the legacy location heuristic
+  // (pre-Phase-9 documents only carry work mode inside the location text).
   if (workMode) {
     const wmRegex = new RegExp(`\\b${workMode}\\b`, "i");
-    filter.location = wmRegex;
+    filter.$and = [{ $or: [{ workMode }, { location: wmRegex }] }];
   }
 
   // ── Date Applied filter ───────────────────────────────────────────────────

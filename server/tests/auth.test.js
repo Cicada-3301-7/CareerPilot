@@ -167,6 +167,87 @@ describe("GET /api/auth/me", () => {
   });
 });
 
+describe("GET /healthz", () => {
+  test("returns ok with the database state, no auth required", async () => {
+    const res = await request(app).get("/healthz");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: "ok", database: "connected" });
+  });
+});
+
+describe("POST /api/auth/logout-all (token revocation)", () => {
+  const me = (token) =>
+    request(app).get("/api/auth/me").set("Authorization", `Bearer ${token}`);
+  const logoutAll = (token) =>
+    request(app).post("/api/auth/logout-all").set("Authorization", `Bearer ${token}`);
+
+  test("requires authentication", async () => {
+    const res = await request(app).post("/api/auth/logout-all");
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: "Authentication required" });
+  });
+
+  test("revokes previously issued tokens; a fresh login works again", async () => {
+    const registered = await register();
+    const oldToken = registered.body.token;
+
+    const res = await logoutAll(oldToken);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ message: "Logged out of all sessions" });
+
+    const rejected = await me(oldToken);
+    expect(rejected.status).toBe(401);
+    expect(rejected.body).toEqual({ error: "Session expired, please log in again" });
+
+    const relogin = await login({ email: VALID_USER.email, password: VALID_USER.password });
+    expect(relogin.status).toBe(200);
+    const accepted = await me(relogin.body.token);
+    expect(accepted.status).toBe(200);
+  });
+
+  test("repeated logout-all cycles reject all stale tokens, newest still works", async () => {
+    const registered = await register();
+    const tokenA = registered.body.token;
+
+    expect((await logoutAll(tokenA)).status).toBe(200);
+
+    const loginB = await login({ email: VALID_USER.email, password: VALID_USER.password });
+    const tokenB = loginB.body.token;
+    expect((await me(tokenB)).status).toBe(200);
+
+    expect((await logoutAll(tokenB)).status).toBe(200);
+
+    expect((await me(tokenA)).status).toBe(401);
+    expect((await me(tokenB)).status).toBe(401);
+
+    const loginC = await login({ email: VALID_USER.email, password: VALID_USER.password });
+    const newest = await me(loginC.body.token);
+    expect(newest.status).toBe(200);
+    expect(newest.body.user.email).toBe(VALID_USER.email);
+  });
+
+  test("legacy tokens signed without a tokenVersion remain valid (grace)", async () => {
+    const registered = await register();
+    const legacy = jwt.sign(
+      { userId: registered.body.user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+    const res = await me(legacy);
+    expect(res.status).toBe(200);
+    expect(res.body.user._id).toBe(registered.body.user._id);
+  });
+
+  test("no auth response ever exposes tokenVersion", async () => {
+    const registered = await register();
+    expect(registered.body.user).not.toHaveProperty("tokenVersion");
+    const loggedIn = await login({ email: VALID_USER.email, password: VALID_USER.password });
+    expect(loggedIn.body.user).not.toHaveProperty("tokenVersion");
+    const meRes = await me(loggedIn.body.token);
+    expect(meRes.body.user).not.toHaveProperty("tokenVersion");
+  });
+});
+
 describe("rate limiting", () => {
   test("register: the 11th request from one IP is rejected with 429", async () => {
     const ip = "10.99.0.1";

@@ -254,6 +254,120 @@ describe("GET /api/applications pagination", () => {
   });
 });
 
+describe("jobLink validation", () => {
+  test("accepts the exact frontend create payload with empty optional strings", async () => {
+    // Mirrors App.jsx's payload: unfilled text inputs are sent as "".
+    const res = await request(app)
+      .post("/api/applications")
+      .set("Authorization", `Bearer ${userA.token}`)
+      .send({
+        company: "Frontend Shape Co",
+        role: "Engineer",
+        location: "",
+        jobLink: "",
+        priority: "Medium",
+        notes: "",
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.jobLink).toBe("");
+  });
+
+  test("accepts a valid https URL", async () => {
+    const res = await createApplication(userA.token, { jobLink: "https://example.com/job/123" });
+    expect(res.status).toBe(201);
+    expect(res.body.jobLink).toBe("https://example.com/job/123");
+  });
+
+  test("rejects a non-URL string", async () => {
+    const res = await createApplication(userA.token, { jobLink: "not a url" });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Job link must be a valid http(s) URL" });
+  });
+
+  test("rejects a non-http(s) scheme", async () => {
+    const res = await createApplication(userA.token, { jobLink: "ftp://example.com/job" });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Job link must be a valid http(s) URL" });
+  });
+
+  test("PATCH enforces the same rule", async () => {
+    const created = await createApplication(userA.token);
+    const bad = await request(app)
+      .patch(`/api/applications/${created.body._id}`)
+      .set("Authorization", `Bearer ${userA.token}`)
+      .send({ jobLink: "nonsense" });
+    expect(bad.status).toBe(400);
+    expect(bad.body).toEqual({ error: "Job link must be a valid http(s) URL" });
+
+    const good = await request(app)
+      .patch(`/api/applications/${created.body._id}`)
+      .set("Authorization", `Bearer ${userA.token}`)
+      .send({ jobLink: "http://example.com/job" });
+    expect(good.status).toBe(200);
+    expect(good.body.jobLink).toBe("http://example.com/job");
+  });
+});
+
+describe("workMode field", () => {
+  test("stores an optional workMode on create", async () => {
+    const res = await createApplication(userA.token, { workMode: "Remote" });
+    expect(res.status).toBe(201);
+    expect(res.body.workMode).toBe("Remote");
+  });
+
+  test("rejects an invalid workMode value", async () => {
+    const res = await createApplication(userA.token, { workMode: "Office" });
+    expect(res.status).toBe(400);
+    expect(typeof res.body.error).toBe("string");
+  });
+
+  test("filter matches the structured field and the legacy location heuristic", async () => {
+    await createApplication(userA.token, { company: "New", workMode: "Remote", location: "Bangalore" });
+    await createApplication(userA.token, { company: "Legacy", location: "Remote" });
+    await createApplication(userA.token, { company: "Neither", location: "Onsite — NYC" });
+
+    const res = await listApplications(userA.token, { workMode: "Remote" });
+    expect(res.status).toBe(200);
+    expect(res.body.map((a) => a.company).sort()).toEqual(["Legacy", "New"]);
+  });
+
+  test("workMode filter composes with search (the $or paths do not collide)", async () => {
+    await createApplication(userA.token, { company: "Google", workMode: "Remote" });
+    await createApplication(userA.token, { company: "Google", location: "Onsite — NYC" });
+    await createApplication(userA.token, { company: "Amazon", workMode: "Remote" });
+
+    const res = await listApplications(userA.token, { search: "google", workMode: "Remote" });
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].company).toBe("Google");
+    expect(res.body[0].workMode).toBe("Remote");
+  });
+});
+
+describe("appliedAt field", () => {
+  test("defaults to creation time when not provided", async () => {
+    const before = Date.now();
+    const res = await createApplication(userA.token);
+    expect(res.status).toBe(201);
+    const appliedAt = new Date(res.body.appliedAt).getTime();
+    expect(appliedAt).toBeGreaterThanOrEqual(before - 1000);
+    expect(appliedAt).toBeLessThanOrEqual(Date.now() + 1000);
+  });
+
+  test("accepts an explicit appliedAt on create and PATCH", async () => {
+    const res = await createApplication(userA.token, { appliedAt: "2026-07-01" });
+    expect(res.status).toBe(201);
+    expect(res.body.appliedAt).toMatch(/^2026-07-01/);
+
+    const patched = await request(app)
+      .patch(`/api/applications/${res.body._id}`)
+      .set("Authorization", `Bearer ${userA.token}`)
+      .send({ appliedAt: "2026-07-10" });
+    expect(patched.status).toBe(200);
+    expect(patched.body.appliedAt).toMatch(/^2026-07-10/);
+  });
+});
+
 describe("Application indexes", () => {
   test("the compound indexes are declared and built", async () => {
     const indexes = await Application.collection.indexes();

@@ -28,6 +28,10 @@ const applicationSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    workMode: {
+      type: String,
+      enum: ["Remote", "Hybrid", "Onsite"],
+    },
     status: {
       type: String,
       enum: ["Applied", "OA", "Interview", "Offer", "Rejected"],
@@ -40,6 +44,10 @@ const applicationSchema = new mongoose.Schema(
     },
     deadline: {
       type: Date,
+    },
+    appliedAt: {
+      type: Date,
+      default: Date.now,
     },
     notes: {
       type: String,

@@ -4,8 +4,12 @@ const env = require("../config/env");
 const AppError = require("../utils/AppError");
 const asyncHandler = require("../utils/asyncHandler");
 
-const signToken = (userId) =>
-  jwt.sign({ userId }, env.jwtSecret, { expiresIn: "7d" });
+const signToken = (user) =>
+  jwt.sign(
+    { userId: user._id, tokenVersion: user.tokenVersion ?? 0 },
+    env.jwtSecret,
+    { expiresIn: "7d" }
+  );
 
 const safeUser = (user) => ({
   _id: user._id,
@@ -23,7 +27,7 @@ const register = asyncHandler(async (req, res) => {
   }
 
   const user = await User.create({ name, email, password });
-  const token = signToken(user._id);
+  const token = signToken(user);
 
   return res.status(201).json({ token, user: safeUser(user) });
 });
@@ -41,7 +45,7 @@ const login = asyncHandler(async (req, res) => {
     throw new AppError("Invalid email or password", 401);
   }
 
-  const token = signToken(user._id);
+  const token = signToken(user);
   return res.status(200).json({ token, user: safeUser(user) });
 });
 
@@ -53,4 +57,11 @@ const me = asyncHandler(async (req, res) => {
   return res.status(200).json({ user: safeUser(user) });
 });
 
-module.exports = { register, login, me };
+const logoutAll = asyncHandler(async (req, res) => {
+  // Invalidates every previously issued token for this user; tokens signed
+  // after the next login carry the incremented version.
+  await User.findByIdAndUpdate(req.userId, { $inc: { tokenVersion: 1 } });
+  return res.status(200).json({ message: "Logged out of all sessions" });
+});
+
+module.exports = { register, login, me, logoutAll };

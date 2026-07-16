@@ -8,26 +8,37 @@ const SORT_VALUES = ["oldest", "company_az", "company_za", "role_az", "status", 
 
 const emptyStringToUndefined = (v) => (v === "" ? undefined : v);
 
+// The frontend sends jobLink: "" when the field is unfilled, so empty strings
+// must keep passing; only non-empty values are held to the URL rule.
+const jobLinkSchema = z.preprocess(
+  emptyStringToUndefined,
+  z.url({ protocol: /^https?$/, error: "Job link must be a valid http(s) URL" }).optional()
+);
+
 const createApplicationSchema = z.strictObject({
   company: z.string({ error: () => "Company is required" }).trim().min(1, "Company is required"),
   role: z.string({ error: () => "Role is required" }).trim().min(1, "Role is required"),
   location: z.string().optional(),
-  jobLink: z.string().optional(),
+  jobLink: jobLinkSchema,
   notes: z.string().optional(),
   priority: z.enum(PRIORITY_VALUES).optional(),
   status: z.enum(STATUS_VALUES).optional(),
+  workMode: z.enum(WORK_MODE_VALUES).optional(),
   deadline: z.preprocess(emptyStringToUndefined, z.coerce.date().optional()),
+  appliedAt: z.preprocess(emptyStringToUndefined, z.coerce.date().optional()),
 });
 
 const updateApplicationSchema = z.strictObject({
   company: z.string({ error: () => "Company is required" }).trim().min(1, "Company is required").optional(),
   role: z.string({ error: () => "Role is required" }).trim().min(1, "Role is required").optional(),
   location: z.string().optional(),
-  jobLink: z.string().optional(),
+  jobLink: jobLinkSchema,
   notes: z.string().optional(),
   priority: z.enum(PRIORITY_VALUES).optional(),
   status: z.enum(STATUS_VALUES).optional(),
+  workMode: z.enum(WORK_MODE_VALUES).optional(),
   deadline: z.preprocess(emptyStringToUndefined, z.coerce.date().optional()),
+  appliedAt: z.preprocess(emptyStringToUndefined, z.coerce.date().optional()),
 });
 
 const listQuerySchema = z.object({
