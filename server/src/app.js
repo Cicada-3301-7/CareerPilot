@@ -11,12 +11,15 @@ const errorHandler = require("./middleware/errorHandler");
 const app = express();
 
 const isProduction = process.env.NODE_ENV === "production";
+const isTest = process.env.NODE_ENV === "test";
 
 app.set("trust proxy", 1);
 
 app.use(helmet());
 app.use(cors());
-app.use(morgan(isProduction ? "combined" : "dev"));
+if (!isTest) {
+  app.use(morgan(isProduction ? "combined" : "dev"));
+}
 app.use(express.json());
 
 app.get("/", (_req, res) => {
