@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 
-const applicationRoutes = require("../routes/applications");
+const applicationRoutes = require("./routes/applications.routes");
 const authRoutes = require("./routes/auth.routes");
 const notFound = require("./middleware/notFound");
 const errorHandler = require("./middleware/errorHandler");
