@@ -14,6 +14,7 @@ CareerPilot is a full-stack job application tracker built on the MERN stack. It 
 **Frontend**
 
 - React 18
+- React Router 7
 - Vite
 - Axios
 
@@ -62,6 +63,7 @@ CareerPilot is a full-stack job application tracker built on the MERN stack. It 
 - **Centralized error handling** — consistent JSON error responses across the API
 - **Security headers & logging** — Helmet and Morgan configured per environment
 - **Responsive frontend** — single-page dashboard with optimistic status updates and debounced search
+- **Client-side routing** — clean URLs via React Router with protected/public route guards (UX only; the API authorizes every request), session restoration validated through `/api/auth/me` on startup, and a 404 page
 
 ## Project Structure
 
@@ -69,10 +71,18 @@ CareerPilot is a full-stack job application tracker built on the MERN stack. It 
 careerpilot/
 ├── client/                      # React + Vite frontend
 │   ├── src/
-│   │   ├── App.jsx              # Router, pages, dashboard
-│   │   ├── api.js               # Axios instance with auth interceptors
-│   │   ├── main.jsx
+│   │   ├── api/                 # Axios instance + auth/applications modules
+│   │   ├── components/          # ErrorBanner, application UI components
+│   │   ├── context/             # AuthContext provider + useAuth hook
+│   │   ├── layouts/             # Shared authenticated app chrome
+│   │   ├── pages/               # Login, Register, Dashboard, NotFound
+│   │   ├── routes/              # ProtectedRoute / PublicOnlyRoute guards
+│   │   ├── utils/               # Formatting helpers
+│   │   ├── App.jsx              # Route table + legacy-hash redirect
+│   │   ├── constants.js         # Shared enums/options (mirrors API validators)
+│   │   ├── main.jsx             # Router + AuthProvider bootstrap
 │   │   └── styles.css
+│   ├── vercel.json              # SPA rewrite for clean-URL deep links
 │   └── vite.config.js
 ├── server/                      # Express + Mongoose REST API
 │   ├── src/
