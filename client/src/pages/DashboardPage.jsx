@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as applicationsApi from "../api/applications";
 import { STATUSES } from "../constants";
 import { getErrorMessage } from "../utils/format";
+import { useAuth } from "../context/useAuth";
 import ErrorBanner from "../components/ErrorBanner";
 import StatsGrid from "../components/applications/StatsGrid";
 import ApplicationForm from "../components/applications/ApplicationForm";
@@ -13,14 +14,18 @@ const initialForm = {
   role: "",
   location: "",
   jobLink: "",
+  workMode: "",
   priority: "Medium",
   deadline: "",
   notes: "",
 };
 
 function DashboardPage() {
+  const { user } = useAuth();
   const [applications, setApplications] = useState([]);
   const [form, setForm] = useState(initialForm);
+  const [formOpen, setFormOpen] = useState(false);
+  const [formError, setFormError] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
@@ -98,6 +103,14 @@ function DashboardPage() {
     setSortBy("newest");
   };
 
+  // ── Add-application modal ────────────────────────────────────────────────
+  const openForm = () => {
+    setFormError("");
+    setFormOpen(true);
+  };
+
+  const closeForm = () => setFormOpen(false);
+
   // ── Form handlers ────────────────────────────────────────────────────────────
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -107,17 +120,22 @@ function DashboardPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
-    setError("");
+    setFormError("");
 
-    const payload = { ...form, deadline: form.deadline || undefined };
+    const payload = {
+      ...form,
+      deadline: form.deadline || undefined,
+      workMode: form.workMode || undefined,
+    };
 
     try {
       const data = await applicationsApi.create(payload);
       // Prepend the new card only if it would appear in the current view
       setApplications((current) => [data, ...current]);
       setForm(initialForm);
+      setFormOpen(false);
     } catch (requestError) {
-      setError(getErrorMessage(requestError, "Could not add the application."));
+      setFormError(getErrorMessage(requestError, "Could not add the application."));
     } finally {
       setSubmitting(false);
     }
@@ -163,14 +181,30 @@ function DashboardPage() {
   };
 
   return (
-    <main>
+    <>
+      <div className="page-header">
+        <div>
+          <h1>Welcome back, {user?.name?.split(" ")[0] || "there"}</h1>
+          <p className="subtitle">
+            Here&apos;s where your job search stands today.
+          </p>
+        </div>
+        <button className="btn btn-primary" type="button" onClick={openForm}>
+          + Add application
+        </button>
+      </div>
+
       <StatsGrid stats={stats} />
 
       <ErrorBanner message={error} onDismiss={() => setError("")} />
 
       <ApplicationForm
+        open={formOpen}
+        onClose={closeForm}
         form={form}
         submitting={submitting}
+        error={formError}
+        onDismissError={() => setFormError("")}
         onChange={handleInputChange}
         onSubmit={handleSubmit}
       />
@@ -179,12 +213,14 @@ function DashboardPage() {
       <section className="applications-section">
         <div className="section-heading">
           <div>
-            <p className="section-kicker">PIPELINE</p>
+            <p className="section-kicker">Pipeline</p>
             <h2>Your applications</h2>
           </div>
-          {!loading && (
-            <p>{applications.length} result{applications.length !== 1 ? "s" : ""}</p>
-          )}
+          <p aria-live="polite">
+            {loading
+              ? ""
+              : `${applications.length} result${applications.length !== 1 ? "s" : ""}`}
+          </p>
         </div>
 
         <ApplicationsToolbar
@@ -206,15 +242,18 @@ function DashboardPage() {
         <ApplicationList
           applications={applications}
           loading={loading}
+          error={error}
+          onRetry={fetchApplications}
           activeFilterCount={activeFilterCount}
           onClearAll={clearAllFilters}
+          onAddClick={openForm}
           updatingId={updatingId}
           deletingId={deletingId}
           onStatusChange={handleStatusChange}
           onDelete={handleDelete}
         />
       </section>
-    </main>
+    </>
   );
 }
 

@@ -1,0 +1,121 @@
+/* ─── CareerPilot design tokens ──────────────────────────────────────────── */
+
+:root {
+  /* Brand greens */
+  --green-950: #0f2119;
+  --green-900: #173e31;
+  --green-800: #145238;
+  --green-700: #176349;
+  --green-600: #1d7a58;
+  --green-500: #2e8f6b;
+  --green-300: #8fc3ab;
+  --green-200: #bcd9c9;
+  --green-100: #dcebe1;
+  --green-50: #e8f2ea;
+
+  /* Neutrals (warm) */
+  --gray-900: #17201c;
+  --gray-700: #34423b;
+  --gray-600: #4b5751;
+  --gray-500: #5f6b64;
+  --gray-400: #8a948e;
+  --gray-300: #c3ccc6;
+  --gray-200: #dce2da;
+  --gray-100: #edf0ec;
+  --gray-50: #f6f8f5;
+
+  /* Surfaces */
+  --surface-app: #f4f6f1;
+  --surface-card: #ffffff;
+  --surface-inset: #f8faf8;
+
+  /* Semantic text */
+  --text-primary: var(--gray-900);
+  --text-secondary: var(--gray-700);
+  --text-muted: var(--gray-500);
+
+  /* Status colors (text/bg/border AA-checked pairs) */
+  --status-applied-text: #2f5e93;
+  --status-applied-bg: #e9f1fb;
+  --status-applied-border: #c9def5;
+  --status-oa-text: #664a89;
+  --status-oa-bg: #f2edfa;
+  --status-oa-border: #ded1f0;
+  --status-interview-text: #7a5410;
+  --status-interview-bg: #fdf1d7;
+  --status-interview-border: #f3ddab;
+  --status-offer-text: #176349;
+  --status-offer-bg: #e3f2e9;
+  --status-offer-border: #bfe2cd;
+  --status-rejected-text: #9b352a;
+  --status-rejected-bg: #fdecea;
+  --status-rejected-border: #f6cdc8;
+
+  /* Priority colors */
+  --priority-low-text: #52645a;
+  --priority-low-bg: #eef2ef;
+  --priority-low-border: #d7e0da;
+  --priority-medium-text: #7a5410;
+  --priority-medium-bg: #fdf1d7;
+  --priority-medium-border: #f3ddab;
+  --priority-high-text: #9b352a;
+  --priority-high-bg: #fdecea;
+  --priority-high-border: #f6cdc8;
+
+  /* Work-mode badge (neutral) */
+  --workmode-text: #3f5a4e;
+  --workmode-bg: #eaf1ec;
+  --workmode-border: #d3e2d8;
+
+  /* Danger */
+  --danger-600: #b3352a;
+  --danger-700: #9b352a;
+  --danger-bg: #fdecea;
+  --danger-border: #f0b9b2;
+
+  /* Warning */
+  --warning-text: #7a5410;
+  --warning-bg: #fdf4dd;
+  --warning-border: #eeda9f;
+
+  /* Typography */
+  --font-body: "DM Sans", system-ui, sans-serif;
+  --font-display: "Manrope", system-ui, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.85rem;
+  --text-md: 0.95rem;
+  --text-lg: 1.15rem;
+  --text-xl: 1.35rem;
+  --text-2xl: 1.6rem;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px rgba(23, 32, 28, 0.05);
+  --shadow-sm: 0 2px 8px rgba(23, 32, 28, 0.07);
+  --shadow-md: 0 8px 28px rgba(23, 32, 28, 0.12);
+
+  /* Focus ring */
+  --focus-ring: 0 0 0 3px rgba(29, 122, 88, 0.28);
+
+  /* Layout */
+  --sidebar-width: 240px;
+  --topbar-height: 60px;
+
+  /* Motion */
+  --transition-fast: 140ms ease;
+  --transition-slide: 220ms ease;
+}

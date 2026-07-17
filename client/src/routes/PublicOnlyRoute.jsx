@@ -8,8 +8,9 @@ function PublicOnlyRoute({ children }) {
 
   if (status === "restoring") {
     return (
-      <div className="auth-shell">
-        <div className="state-card">Loading…</div>
+      <div className="page-loading" role="status">
+        <span className="spinner" aria-hidden="true" />
+        <p>Loading…</p>
       </div>
     );
   }

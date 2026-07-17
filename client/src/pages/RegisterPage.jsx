@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import ErrorBanner from "../components/ErrorBanner";
+import BrandMark from "../components/ui/BrandMark";
 import { getErrorMessage } from "../utils/format";
 
 function RegisterPage() {
@@ -28,11 +29,14 @@ function RegisterPage() {
 
   return (
     <div className="auth-shell">
+      <div className="auth-brand">
+        <BrandMark />
+      </div>
+
       <div className="auth-card">
         <div className="auth-header">
-          <p className="eyebrow">GET STARTED</p>
-          <h1>CareerPilot</h1>
-          <p className="subtitle">Create your free account to start tracking.</p>
+          <h1>Create your account</h1>
+          <p className="subtitle">Start tracking every opportunity for free.</p>
         </div>
 
         <ErrorBanner message={error} onDismiss={() => setError("")} />
@@ -46,6 +50,7 @@ function RegisterPage() {
               value={form.name}
               onChange={handleChange}
               placeholder="Alex Kim"
+              autoComplete="name"
               required
               autoFocus
             />
@@ -58,6 +63,7 @@ function RegisterPage() {
               value={form.email}
               onChange={handleChange}
               placeholder="you@example.com"
+              autoComplete="email"
               required
             />
           </label>
@@ -69,11 +75,17 @@ function RegisterPage() {
               value={form.password}
               onChange={handleChange}
               placeholder="At least 8 characters"
+              autoComplete="new-password"
               minLength={8}
               required
             />
           </label>
-          <button className="primary-button auth-submit" type="submit" disabled={loading}>
+          <button
+            className="btn btn-primary auth-submit"
+            type="submit"
+            disabled={loading}
+          >
+            {loading && <span className="spinner spinner-sm" aria-hidden="true" />}
             {loading ? "Creating account…" : "Create account"}
           </button>
         </form>

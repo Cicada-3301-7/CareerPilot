@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import ErrorBanner from "../components/ErrorBanner";
+import BrandMark from "../components/ui/BrandMark";
 import { getErrorMessage } from "../utils/format";
 
 function LoginPage() {
@@ -28,14 +29,25 @@ function LoginPage() {
 
   return (
     <div className="auth-shell">
+      <div className="auth-brand">
+        <BrandMark />
+      </div>
+
       <div className="auth-card">
         <div className="auth-header">
-          <p className="eyebrow">WELCOME BACK</p>
-          <h1>CareerPilot</h1>
+          <h1>Welcome back</h1>
           <p className="subtitle">Sign in to your job search dashboard.</p>
         </div>
 
-        <ErrorBanner message={sessionNotice} onDismiss={clearSessionNotice} />
+        <ErrorBanner
+          message={sessionNotice}
+          variant={
+            sessionNotice.toLowerCase().includes("suspended")
+              ? "error"
+              : "warning"
+          }
+          onDismiss={clearSessionNotice}
+        />
         <ErrorBanner message={error} onDismiss={() => setError("")} />
 
         <form onSubmit={handleSubmit} className="auth-form">
@@ -47,6 +59,7 @@ function LoginPage() {
               value={form.email}
               onChange={handleChange}
               placeholder="you@example.com"
+              autoComplete="email"
               required
               autoFocus
             />
@@ -59,10 +72,16 @@ function LoginPage() {
               value={form.password}
               onChange={handleChange}
               placeholder="••••••••"
+              autoComplete="current-password"
               required
             />
           </label>
-          <button className="primary-button auth-submit" type="submit" disabled={loading}>
+          <button
+            className="btn btn-primary auth-submit"
+            type="submit"
+            disabled={loading}
+          >
+            {loading && <span className="spinner spinner-sm" aria-hidden="true" />}
             {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
