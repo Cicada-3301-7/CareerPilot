@@ -37,9 +37,14 @@ const authenticate = async (req, res, next) => {
     // valid. A missing user passes through so controllers keep their own
     // deleted-user contracts (e.g. GET /me returns 404, not 401) — but
     // req.user stays unset, so requireRole denies deleted users.
-    const user = await User.findById(payload.userId).select("tokenVersion role");
+    const user = await User.findById(payload.userId).select("tokenVersion role status");
     if (user && (payload.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
       return res.status(401).json({ error: "Session expired, please log in again" });
+    }
+    // Checked per request from the DB, so suspension takes effect immediately
+    // for already-issued tokens; a missing status field means active.
+    if (user && user.status === "suspended") {
+      return res.status(403).json({ error: "Account suspended" });
     }
     if (user) {
       req.user = { id: payload.userId, role: user.role || "user" };

@@ -46,6 +46,8 @@ CareerPilot is a full-stack job application tracker built on the MERN stack. It 
 - **JWT authentication** — 7-day tokens; every application query is scoped to the authenticated user
 - **Logout from all devices** — token revocation invalidates every previously issued token
 - **Role-based access control** — `user`/`admin` roles enforced server-side; roles live in the database (never in the JWT), so role changes take effect immediately
+- **Admin user management** — paginated user listing with search/filter/sort, per-user application statistics, and role changes via admin-only APIs
+- **Account suspension** — reversible `active`/`suspended` lifecycle; suspension blocks logins and already-issued tokens immediately, reactivation restores them
 - **Job application CRUD** — create, list, update, and delete applications
 - **Search** — case-insensitive search across company, role, location, and notes (regex-safe)
 - **Filtering** — by status, work mode, and date range (Today / Last 7 Days / Last 30 Days)
@@ -190,6 +192,10 @@ All `/api/applications` routes and `/api/auth/me` / `/api/auth/logout-all` requi
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | GET | `/api/admin/stats` | Platform statistics: total users, total applications, application counts by status |
+| GET | `/api/admin/users` | Paginated user list. Supports `search` (name/email), `role`, `status`, `sort`, `page`/`limit` |
+| GET | `/api/admin/users/:id` | Single user with their application statistics |
+| PATCH | `/api/admin/users/:id/role` | Change a user's role (`user`/`admin`) |
+| PATCH | `/api/admin/users/:id/status` | Suspend (`suspended`) or reactivate (`active`) an account |
 
 **Health**
 
@@ -210,6 +216,8 @@ How authorization works:
 2. `requireRole("admin")` (in `middleware/authorize.js`) guards the entire `/api/admin` router, returning `403` for authenticated non-admins and `401` when unauthenticated.
 3. The role is **never embedded in the JWT and never accepted from client input** — the database record is the source of truth, so promotions and demotions apply immediately to already-issued tokens. Registration uses a strict schema that rejects payloads containing `role` or other unexpected fields.
 
+**Account status** — every account is `active` (default) or `suspended`. Suspension is checked against the database on every authenticated request, so it takes effect immediately for already-issued tokens (`403 Account suspended`), and suspended accounts cannot log in. Reactivation restores access, including for unexpired tokens issued before the suspension. Admins cannot change their own role or status, and an admin who is the last active admin cannot be demoted or suspended — so the platform can never be left without one. If admin access is ever lost anyway (e.g. direct database edits), recover with the promotion script below.
+
 **Creating an admin** — there is intentionally no API path to become admin. Promote an existing registered account from the `server/` directory (uses the same `MONGODB_URI` as the API):
 
 ```bash
@@ -220,7 +228,7 @@ The script only promotes existing accounts; it never creates one.
 
 ## Testing
 
-The backend ships with **88 automated tests** covering authentication, authorization boundaries, role-based access control, CRUD, search/filter/sort/pagination contracts, validation, rate limiting, and token revocation. Tests run against an in-memory MongoDB instance — no database setup or environment variables required.
+The backend ships with **122 automated tests** covering authentication, authorization boundaries, role-based access control, admin user management, account suspension, CRUD, search/filter/sort/pagination contracts, validation, rate limiting, and token revocation. Tests run against an in-memory MongoDB instance — no database setup or environment variables required.
 
 ```bash
 cd server

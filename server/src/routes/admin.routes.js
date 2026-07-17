@@ -2,6 +2,13 @@ const express = require("express");
 const adminController = require("../controllers/admin.controller");
 const authenticate = require("../middleware/auth");
 const requireRole = require("../middleware/authorize");
+const validate = require("../middleware/validate");
+const {
+  listUsersQuerySchema,
+  updateRoleSchema,
+  updateStatusSchema,
+  objectIdParamSchema,
+} = require("../validators/admin.validators");
 
 const router = express.Router();
 
@@ -10,5 +17,20 @@ const router = express.Router();
 router.use(authenticate, requireRole("admin"));
 
 router.get("/stats", adminController.stats);
+
+router.get("/users", validate(listUsersQuerySchema, "query"), adminController.listUsers);
+router.get("/users/:id", validate(objectIdParamSchema, "params"), adminController.getUser);
+router.patch(
+  "/users/:id/role",
+  validate(objectIdParamSchema, "params"),
+  validate(updateRoleSchema),
+  adminController.updateUserRole
+);
+router.patch(
+  "/users/:id/status",
+  validate(objectIdParamSchema, "params"),
+  validate(updateStatusSchema),
+  adminController.updateUserStatus
+);
 
 module.exports = router;
