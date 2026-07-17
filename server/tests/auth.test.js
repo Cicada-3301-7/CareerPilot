@@ -53,7 +53,7 @@ describe("POST /api/auth/register", () => {
     expect(res.status).toBe(201);
     expect(typeof res.body.token).toBe("string");
     expect(res.body.token.length).toBeGreaterThan(0);
-    expect(Object.keys(res.body.user).sort()).toEqual(["_id", "createdAt", "email", "name"]);
+    expect(Object.keys(res.body.user).sort()).toEqual(["_id", "createdAt", "email", "name", "role"]);
     expect(res.body.user.name).toBe(VALID_USER.name);
     expect(res.body.user.email).toBe(VALID_USER.email);
     expect(res.body.user).not.toHaveProperty("password");
@@ -105,7 +105,7 @@ describe("POST /api/auth/login", () => {
     const res = await login({ email: VALID_USER.email, password: VALID_USER.password });
     expect(res.status).toBe(200);
     expect(typeof res.body.token).toBe("string");
-    expect(Object.keys(res.body.user).sort()).toEqual(["_id", "createdAt", "email", "name"]);
+    expect(Object.keys(res.body.user).sort()).toEqual(["_id", "createdAt", "email", "name", "role"]);
     expect(res.body.user).not.toHaveProperty("password");
   });
 
@@ -124,7 +124,7 @@ describe("GET /api/auth/me", () => {
       .set("Authorization", `Bearer ${registered.body.token}`);
     expect(res.status).toBe(200);
     expect(res.body.user._id).toBe(registered.body.user._id);
-    expect(Object.keys(res.body.user).sort()).toEqual(["_id", "createdAt", "email", "name"]);
+    expect(Object.keys(res.body.user).sort()).toEqual(["_id", "createdAt", "email", "name", "role"]);
   });
 
   test("rejects a missing Authorization header", async () => {

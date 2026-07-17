@@ -26,6 +26,14 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // Authorization role. Never client-assignable; promotion happens only via
+    // scripts/promote-admin.js. The DB record is the source of truth — the
+    // role is deliberately not embedded in JWTs.
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
   },
   { timestamps: true }
 );

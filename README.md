@@ -45,6 +45,7 @@ CareerPilot is a full-stack job application tracker built on the MERN stack. It 
 - **User accounts** — registration and login with bcrypt-hashed passwords (cost factor 12)
 - **JWT authentication** — 7-day tokens; every application query is scoped to the authenticated user
 - **Logout from all devices** — token revocation invalidates every previously issued token
+- **Role-based access control** — `user`/`admin` roles enforced server-side; roles live in the database (never in the JWT), so role changes take effect immediately
 - **Job application CRUD** — create, list, update, and delete applications
 - **Search** — case-insensitive search across company, role, location, and notes (regex-safe)
 - **Filtering** — by status, work mode, and date range (Today / Last 7 Days / Last 30 Days)
@@ -74,13 +75,14 @@ careerpilot/
 ├── server/                      # Express + Mongoose REST API
 │   ├── src/
 │   │   ├── config/              # Env validation, database connection
-│   │   ├── controllers/         # Request handlers (auth, applications)
-│   │   ├── middleware/          # Auth, validation, rate limiting, errors
+│   │   ├── controllers/         # Request handlers (auth, applications, admin)
+│   │   ├── middleware/          # Auth, authorization, validation, rate limiting, errors
 │   │   ├── models/              # Mongoose schemas (User, Application)
 │   │   ├── routes/              # Route definitions (thin, no business logic)
 │   │   ├── validators/          # Zod schemas
 │   │   ├── utils/               # AppError, asyncHandler
 │   │   └── app.js               # Express app wiring (no listen)
+│   ├── scripts/                 # Operational scripts (admin promotion)
 │   ├── tests/                   # Jest + Supertest integration suite
 │   ├── jest.config.js
 │   └── server.js                # Entry point: env → connect → listen
@@ -183,15 +185,42 @@ All `/api/applications` routes and `/api/auth/me` / `/api/auth/logout-all` requi
 | PATCH | `/api/applications/:id` | Update supplied fields |
 | DELETE | `/api/applications/:id` | Delete an application |
 
+**Admin** (requires the `admin` role)
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/api/admin/stats` | Platform statistics: total users, total applications, application counts by status |
+
 **Health**
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | GET | `/healthz` | Service health and database connection state |
 
+## Roles & Authorization
+
+Every account has a `role`: `user` (default) or `admin`.
+
+- **user** — full access to their own profile and job applications. Every applications query is scoped to the authenticated user at the database level.
+- **admin** — everything a user can do, plus the admin-only endpoints under `/api/admin`.
+
+How authorization works:
+
+1. `authenticate` verifies the JWT and loads the account's current `tokenVersion` and `role` from the database in a single lookup, attaching `req.user = { id, role }`.
+2. `requireRole("admin")` (in `middleware/authorize.js`) guards the entire `/api/admin` router, returning `403` for authenticated non-admins and `401` when unauthenticated.
+3. The role is **never embedded in the JWT and never accepted from client input** — the database record is the source of truth, so promotions and demotions apply immediately to already-issued tokens. Registration uses a strict schema that rejects payloads containing `role` or other unexpected fields.
+
+**Creating an admin** — there is intentionally no API path to become admin. Promote an existing registered account from the `server/` directory (uses the same `MONGODB_URI` as the API):
+
+```bash
+node scripts/promote-admin.js user@example.com
+```
+
+The script only promotes existing accounts; it never creates one.
+
 ## Testing
 
-The backend ships with **71 automated tests** covering authentication, authorization boundaries, CRUD, search/filter/sort/pagination contracts, validation, rate limiting, and token revocation. Tests run against an in-memory MongoDB instance — no database setup or environment variables required.
+The backend ships with **88 automated tests** covering authentication, authorization boundaries, role-based access control, CRUD, search/filter/sort/pagination contracts, validation, rate limiting, and token revocation. Tests run against an in-memory MongoDB instance — no database setup or environment variables required.
 
 ```bash
 cd server

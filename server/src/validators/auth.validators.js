@@ -3,7 +3,9 @@ const z = require("zod");
 const REQUIRED_REGISTER = "Name, email, and password are required";
 const REQUIRED_LOGIN = "Email and password are required";
 
-const registerSchema = z.object({
+// strictObject so privilege-related fields (role, isAdmin, tokenVersion, …)
+// are rejected outright instead of silently ignored.
+const registerSchema = z.strictObject({
   name: z.string({ error: () => REQUIRED_REGISTER }).min(1, REQUIRED_REGISTER),
   email: z
     .string({ error: () => REQUIRED_REGISTER })

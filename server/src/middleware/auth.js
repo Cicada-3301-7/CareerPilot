@@ -8,7 +8,10 @@ const User = require("../models/User");
  * not been revoked (its tokenVersion still matches the user's).
  *
  * On success it attaches `req.userId` so downstream route
- * handlers know which user is making the request.
+ * handlers know which user is making the request, plus
+ * `req.user = { id, role }` for authorization checks. The role always
+ * comes from the current database record (never the JWT), so role
+ * changes take effect immediately for already-issued tokens.
  */
 const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -32,10 +35,14 @@ const authenticate = async (req, res, next) => {
   try {
     // `?? 0` on both sides keeps tokens issued before tokenVersion existed
     // valid. A missing user passes through so controllers keep their own
-    // deleted-user contracts (e.g. GET /me returns 404, not 401).
-    const user = await User.findById(payload.userId).select("tokenVersion");
+    // deleted-user contracts (e.g. GET /me returns 404, not 401) — but
+    // req.user stays unset, so requireRole denies deleted users.
+    const user = await User.findById(payload.userId).select("tokenVersion role");
     if (user && (payload.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
       return res.status(401).json({ error: "Session expired, please log in again" });
+    }
+    if (user) {
+      req.user = { id: payload.userId, role: user.role || "user" };
     }
   } catch (err) {
     return next(err);
