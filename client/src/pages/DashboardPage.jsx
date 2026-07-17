@@ -8,6 +8,7 @@ import StatsGrid from "../components/applications/StatsGrid";
 import ApplicationForm from "../components/applications/ApplicationForm";
 import ApplicationsToolbar from "../components/applications/ApplicationsToolbar";
 import ApplicationList from "../components/applications/ApplicationList";
+import DocumentsModal from "../components/documents/DocumentsModal";
 
 const initialForm = {
   company: "",
@@ -31,6 +32,7 @@ function DashboardPage() {
   const [updatingId, setUpdatingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState("");
+  const [docsApplication, setDocsApplication] = useState(null);
 
   // ── Search / Filter / Sort state ────────────────────────────────────────────
   const [searchInput, setSearchInput]   = useState("");   // raw input (instant)
@@ -198,6 +200,11 @@ function DashboardPage() {
 
       <ErrorBanner message={error} onDismiss={() => setError("")} />
 
+      <DocumentsModal
+        application={docsApplication}
+        onClose={() => setDocsApplication(null)}
+      />
+
       <ApplicationForm
         open={formOpen}
         onClose={closeForm}
@@ -251,6 +258,7 @@ function DashboardPage() {
           deletingId={deletingId}
           onStatusChange={handleStatusChange}
           onDelete={handleDelete}
+          onOpenDocs={setDocsApplication}
         />
       </section>
     </>

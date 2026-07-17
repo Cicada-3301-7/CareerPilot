@@ -1,6 +1,8 @@
 const Application = require("../models/Application");
+const ApplicationFile = require("../models/ApplicationFile");
 const AppError = require("../utils/AppError");
 const asyncHandler = require("../utils/asyncHandler");
+const storage = require("../services/storage");
 
 const list = asyncHandler(async (req, res) => {
   const { search, status, workMode, dateRange, sort } = req.query;
@@ -116,6 +118,21 @@ const remove = asyncHandler(async (req, res) => {
 
   if (!application) {
     throw new AppError("Application not found", 404);
+  }
+
+  // Cascade the application's documents: storage objects first (best-effort —
+  // the driver logs and never throws), then flip the soft-delete flags so no
+  // live DB record is ever left pointing at a missing object.
+  const files = await ApplicationFile.find({
+    applicationId: application._id,
+    isDeleted: false,
+  }).select("+storageKey");
+  if (files.length > 0) {
+    await storage.remove(files.map((file) => file.storageKey));
+    await ApplicationFile.updateMany(
+      { applicationId: application._id, isDeleted: false },
+      { isDeleted: true, deletedAt: new Date() }
+    );
   }
 
   return res.status(200).json({ message: "Application deleted" });

@@ -10,6 +10,7 @@ function ApplicationTable({
   deletingId,
   onStatusChange,
   onDelete,
+  onOpenDocs,
 }) {
   const [expandedId, setExpandedId] = useState(null);
 
@@ -78,6 +79,17 @@ function ApplicationTable({
                           </svg>
                         </a>
                       )}
+                      <button
+                        className="icon-button"
+                        type="button"
+                        aria-label={`Documents for ${positionLabel}`}
+                        title="Documents"
+                        onClick={() => onOpenDocs(application)}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l8.57-8.57a4 4 0 1 1 5.66 5.66l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
                       {application.notes && (
                         <button
                           className="notes-toggle"

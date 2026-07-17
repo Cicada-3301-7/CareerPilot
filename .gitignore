@@ -4,3 +4,10 @@ dist/
 *.log
 .DS_Store
 
+# Local storage driver output (dev only — production uses S3/R2)
+server/uploads/
+
+CAREERPILOT_IMPLEMENTATION_PLAN.md
+
+# Claude Code local configuration
+.claude/

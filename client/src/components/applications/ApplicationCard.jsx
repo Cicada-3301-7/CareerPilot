@@ -4,7 +4,14 @@ import ConfirmDelete from "../ui/ConfirmDelete";
 import StatusSelect from "./StatusSelect";
 import { formatDate } from "../../utils/format";
 
-function ApplicationCard({ application, updating, deleting, onStatusChange, onDelete }) {
+function ApplicationCard({
+  application,
+  updating,
+  deleting,
+  onStatusChange,
+  onDelete,
+  onOpenDocs,
+}) {
   const [notesOpen, setNotesOpen] = useState(false);
 
   return (
@@ -69,11 +76,20 @@ function ApplicationCard({ application, updating, deleting, onStatusChange, onDe
         ) : (
           <span />
         )}
-        <ConfirmDelete
-          deleting={deleting}
-          label={`${application.role} at ${application.company}`}
-          onConfirm={() => onDelete(application._id)}
-        />
+        <span className="card-action-buttons">
+          <button
+            className="btn btn-secondary btn-sm"
+            type="button"
+            onClick={() => onOpenDocs(application)}
+          >
+            Documents
+          </button>
+          <ConfirmDelete
+            deleting={deleting}
+            label={`${application.role} at ${application.company}`}
+            onConfirm={() => onDelete(application._id)}
+          />
+        </span>
       </div>
     </article>
   );

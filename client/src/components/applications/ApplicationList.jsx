@@ -14,6 +14,7 @@ function ApplicationList({
   deletingId,
   onStatusChange,
   onDelete,
+  onOpenDocs,
 }) {
   if (loading) {
     return (
@@ -79,6 +80,7 @@ function ApplicationList({
         deletingId={deletingId}
         onStatusChange={onStatusChange}
         onDelete={onDelete}
+        onOpenDocs={onOpenDocs}
       />
       <div className="application-cards">
         {applications.map((application) => (
@@ -89,6 +91,7 @@ function ApplicationList({
             deleting={deletingId === application._id}
             onStatusChange={onStatusChange}
             onDelete={onDelete}
+            onOpenDocs={onOpenDocs}
           />
         ))}
       </div>

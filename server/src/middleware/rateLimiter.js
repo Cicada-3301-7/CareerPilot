@@ -14,4 +14,13 @@ const loginLimiter = rateLimit({
   message: TOO_MANY_ATTEMPTS,
 });
 
-module.exports = { registerLimiter, loginLimiter };
+// Uploads buffer whole files in memory, so they get their own throttle.
+// Skipped under test so cap/concurrency tests can't trip it.
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  message: TOO_MANY_ATTEMPTS,
+  skip: () => process.env.NODE_ENV === "test",
+});
+
+module.exports = { registerLimiter, loginLimiter, uploadLimiter };

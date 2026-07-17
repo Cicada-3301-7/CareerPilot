@@ -1139,3 +1139,131 @@ textarea:focus {
   gap: var(--space-2);
   font-weight: 700;
 }
+
+/* ─── Documents modal ────────────────────────────────────────────────────── */
+
+.badge-doctype {
+  color: var(--text-secondary);
+  background: var(--gray-100);
+  border-color: var(--gray-200);
+}
+
+.upload-form {
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.upload-row {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.upload-type {
+  flex: 1 1 140px;
+}
+
+/* <label> styled as a button so the hidden file input stays keyboard- and
+   screen-reader-accessible. */
+.upload-pick {
+  cursor: pointer;
+}
+
+.upload-pick:has(input:focus-visible) {
+  outline: 2px solid var(--green-600);
+  outline-offset: 2px;
+}
+
+.upload-pick.is-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.upload-selection {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.upload-progress {
+  height: 6px;
+  margin-top: var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--gray-100);
+  overflow: hidden;
+}
+
+.upload-progress-bar {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--green-600);
+  transition: width 0.2s ease;
+}
+
+.document-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.document-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--gray-100);
+}
+
+.document-row:first-child {
+  border-top: 0;
+}
+
+.document-info {
+  min-width: 0;
+}
+
+.document-name {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.document-meta {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.document-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.document-skeleton {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.document-skeleton .skeleton {
+  height: 40px;
+  border-radius: var(--radius-md);
+}
+
+.documents-usage {
+  margin: 0 auto 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.card-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
