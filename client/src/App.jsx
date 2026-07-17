@@ -1,11 +1,13 @@
 import { useEffect } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, Outlet, useNavigate } from "react-router-dom";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import PublicOnlyRoute from "./routes/PublicOnlyRoute";
 import AppLayout from "./layouts/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 // The app used hash routing before Phase 11; send old #/login-style
@@ -51,8 +53,20 @@ function App() {
           }
         >
           <Route index element={<DashboardPage />} />
-          {/* Phase 13 admin routes mount here behind
-              <ProtectedRoute requireAdmin> */}
+          <Route
+            path="admin"
+            element={
+              <ProtectedRoute requireAdmin>
+                <Outlet />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<AdminDashboardPage />} />
+            <Route path="users" element={<AdminUsersPage />} />
+            {/* Alias kept alongside /admin so stats can grow into its own
+                page later without a URL change */}
+            <Route path="stats" element={<AdminDashboardPage />} />
+          </Route>
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
