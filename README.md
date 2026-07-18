@@ -14,6 +14,7 @@ CareerPilot is a full-stack job application tracker built on the MERN stack. It 
 **Frontend**
 
 - React 18
+- React Router 7
 - Vite
 - Axios
 
@@ -45,6 +46,9 @@ CareerPilot is a full-stack job application tracker built on the MERN stack. It 
 - **User accounts** — registration and login with bcrypt-hashed passwords (cost factor 12)
 - **JWT authentication** — 7-day tokens; every application query is scoped to the authenticated user
 - **Logout from all devices** — token revocation invalidates every previously issued token
+- **Role-based access control** — `user`/`admin` roles enforced server-side; roles live in the database (never in the JWT), so role changes take effect immediately
+- **Admin user management** — paginated user listing with search/filter/sort, per-user application statistics, and role changes via admin-only APIs
+- **Account suspension** — reversible `active`/`suspended` lifecycle; suspension blocks logins and already-issued tokens immediately, reactivation restores them
 - **Job application CRUD** — create, list, update, and delete applications
 - **Search** — case-insensitive search across company, role, location, and notes (regex-safe)
 - **Filtering** — by status, work mode, and date range (Today / Last 7 Days / Last 30 Days)
@@ -59,6 +63,7 @@ CareerPilot is a full-stack job application tracker built on the MERN stack. It 
 - **Centralized error handling** — consistent JSON error responses across the API
 - **Security headers & logging** — Helmet and Morgan configured per environment
 - **Responsive frontend** — single-page dashboard with optimistic status updates and debounced search
+- **Client-side routing** — clean URLs via React Router with protected/public route guards (UX only; the API authorizes every request), session restoration validated through `/api/auth/me` on startup, and a 404 page
 
 ## Project Structure
 
@@ -66,21 +71,30 @@ CareerPilot is a full-stack job application tracker built on the MERN stack. It 
 careerpilot/
 ├── client/                      # React + Vite frontend
 │   ├── src/
-│   │   ├── App.jsx              # Router, pages, dashboard
-│   │   ├── api.js               # Axios instance with auth interceptors
-│   │   ├── main.jsx
+│   │   ├── api/                 # Axios instance + auth/applications modules
+│   │   ├── components/          # ErrorBanner, application UI components
+│   │   ├── context/             # AuthContext provider + useAuth hook
+│   │   ├── layouts/             # Shared authenticated app chrome
+│   │   ├── pages/               # Login, Register, Dashboard, NotFound
+│   │   ├── routes/              # ProtectedRoute / PublicOnlyRoute guards
+│   │   ├── utils/               # Formatting helpers
+│   │   ├── App.jsx              # Route table + legacy-hash redirect
+│   │   ├── constants.js         # Shared enums/options (mirrors API validators)
+│   │   ├── main.jsx             # Router + AuthProvider bootstrap
 │   │   └── styles.css
+│   ├── vercel.json              # SPA rewrite for clean-URL deep links
 │   └── vite.config.js
 ├── server/                      # Express + Mongoose REST API
 │   ├── src/
 │   │   ├── config/              # Env validation, database connection
-│   │   ├── controllers/         # Request handlers (auth, applications)
-│   │   ├── middleware/          # Auth, validation, rate limiting, errors
+│   │   ├── controllers/         # Request handlers (auth, applications, admin)
+│   │   ├── middleware/          # Auth, authorization, validation, rate limiting, errors
 │   │   ├── models/              # Mongoose schemas (User, Application)
 │   │   ├── routes/              # Route definitions (thin, no business logic)
 │   │   ├── validators/          # Zod schemas
 │   │   ├── utils/               # AppError, asyncHandler
 │   │   └── app.js               # Express app wiring (no listen)
+│   ├── scripts/                 # Operational scripts (admin promotion)
 │   ├── tests/                   # Jest + Supertest integration suite
 │   ├── jest.config.js
 │   └── server.js                # Entry point: env → connect → listen
@@ -183,15 +197,48 @@ All `/api/applications` routes and `/api/auth/me` / `/api/auth/logout-all` requi
 | PATCH | `/api/applications/:id` | Update supplied fields |
 | DELETE | `/api/applications/:id` | Delete an application |
 
+**Admin** (requires the `admin` role)
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/api/admin/stats` | Platform statistics: total users, total applications, application counts by status |
+| GET | `/api/admin/users` | Paginated user list. Supports `search` (name/email), `role`, `status`, `sort`, `page`/`limit` |
+| GET | `/api/admin/users/:id` | Single user with their application statistics |
+| PATCH | `/api/admin/users/:id/role` | Change a user's role (`user`/`admin`) |
+| PATCH | `/api/admin/users/:id/status` | Suspend (`suspended`) or reactivate (`active`) an account |
+
 **Health**
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | GET | `/healthz` | Service health and database connection state |
 
+## Roles & Authorization
+
+Every account has a `role`: `user` (default) or `admin`.
+
+- **user** — full access to their own profile and job applications. Every applications query is scoped to the authenticated user at the database level.
+- **admin** — everything a user can do, plus the admin-only endpoints under `/api/admin`.
+
+How authorization works:
+
+1. `authenticate` verifies the JWT and loads the account's current `tokenVersion` and `role` from the database in a single lookup, attaching `req.user = { id, role }`.
+2. `requireRole("admin")` (in `middleware/authorize.js`) guards the entire `/api/admin` router, returning `403` for authenticated non-admins and `401` when unauthenticated.
+3. The role is **never embedded in the JWT and never accepted from client input** — the database record is the source of truth, so promotions and demotions apply immediately to already-issued tokens. Registration uses a strict schema that rejects payloads containing `role` or other unexpected fields.
+
+**Account status** — every account is `active` (default) or `suspended`. Suspension is checked against the database on every authenticated request, so it takes effect immediately for already-issued tokens (`403 Account suspended`), and suspended accounts cannot log in. Reactivation restores access, including for unexpired tokens issued before the suspension. Admins cannot change their own role or status, and an admin who is the last active admin cannot be demoted or suspended — so the platform can never be left without one. If admin access is ever lost anyway (e.g. direct database edits), recover with the promotion script below.
+
+**Creating an admin** — there is intentionally no API path to become admin. Promote an existing registered account from the `server/` directory (uses the same `MONGODB_URI` as the API):
+
+```bash
+node scripts/promote-admin.js user@example.com
+```
+
+The script only promotes existing accounts; it never creates one.
+
 ## Testing
 
-The backend ships with **71 automated tests** covering authentication, authorization boundaries, CRUD, search/filter/sort/pagination contracts, validation, rate limiting, and token revocation. Tests run against an in-memory MongoDB instance — no database setup or environment variables required.
+The backend ships with **122 automated tests** covering authentication, authorization boundaries, role-based access control, admin user management, account suspension, CRUD, search/filter/sort/pagination contracts, validation, rate limiting, and token revocation. Tests run against an in-memory MongoDB instance — no database setup or environment variables required.
 
 ```bash
 cd server

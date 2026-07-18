@@ -15,6 +15,7 @@ const safeUser = (user) => ({
   _id: user._id,
   name: user.name,
   email: user.email,
+  role: user.role || "user",
   createdAt: user.createdAt,
 });
 
@@ -43,6 +44,12 @@ const login = asyncHandler(async (req, res) => {
   const match = await user.comparePassword(password);
   if (!match) {
     throw new AppError("Invalid email or password", 401);
+  }
+
+  // Only after password verification, so account status is never revealed
+  // to someone who doesn't hold the credentials.
+  if (user.status === "suspended") {
+    throw new AppError("Account suspended", 403);
   }
 
   const token = signToken(user);

@@ -26,9 +26,28 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // Authorization role. Never client-assignable; promotion happens only via
+    // scripts/promote-admin.js. The DB record is the source of truth — the
+    // role is deliberately not embedded in JWTs.
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
+    // Reversible account lifecycle. Pre-existing documents lack this field,
+    // so queries must treat "active" as { $ne: "suspended" } — DB filters do
+    // not apply schema defaults, only hydration does.
+    status: {
+      type: String,
+      enum: ["active", "suspended"],
+      default: "active",
+    },
   },
   { timestamps: true }
 );
+
+// Serves the admin role/status filters and the last-active-admin count.
+userSchema.index({ role: 1, status: 1 });
 
 // Hash the password before saving
 userSchema.pre("save", async function (next) {

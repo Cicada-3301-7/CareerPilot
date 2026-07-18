@@ -1,0 +1,111 @@
+/* ─── Auth pages (login / register) ──────────────────────────────────────── */
+
+.auth-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  min-height: 100vh;
+  padding: var(--space-5);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(214, 234, 211, 0.7), transparent 26rem),
+    var(--surface-app);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.auth-brand .brand-name {
+  font-size: 1.2rem;
+  color: var(--text-primary);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: var(--space-6) var(--space-6);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-header {
+  margin-bottom: var(--space-5);
+}
+
+.auth-header h1 {
+  margin-bottom: var(--space-1);
+  font-size: var(--text-2xl);
+}
+
+.auth-header .subtitle {
+  margin-bottom: 0;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.auth-submit {
+  margin-top: var(--space-2);
+  width: 100%;
+  padding: 12px 20px;
+}
+
+.auth-switch {
+  margin: var(--space-4) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+@media (max-width: 639px) {
+  .auth-card {
+    padding: var(--space-5) var(--space-4);
+  }
+}
+
+/* ─── 404 page ───────────────────────────────────────────────────────────── */
+
+.notfound-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-5);
+  text-align: center;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(214, 234, 211, 0.7), transparent 26rem),
+    var(--surface-app);
+}
+
+.notfound-code {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 16vw, 7rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: var(--green-200);
+}
+
+.notfound-shell h1 {
+  margin-bottom: var(--space-2);
+}
+
+.notfound-shell .subtitle {
+  margin-bottom: var(--space-5);
+  color: var(--text-muted);
+}

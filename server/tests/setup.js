@@ -5,11 +5,14 @@ process.env.NODE_ENV = "test";
 process.env.JWT_SECRET =
   "careerpilot-test-secret-0123456789abcdef0123456789abcdef01234567";
 process.env.MONGODB_URI = "mongodb://127.0.0.1:27017/careerpilot-test-unused";
+process.env.STORAGE_DRIVER = "memory";
 
 const mongoose = require("mongoose");
 const { MongoMemoryServer } = require("mongodb-memory-server");
 const User = require("../src/models/User");
 const Application = require("../src/models/Application");
+const ApplicationFile = require("../src/models/ApplicationFile");
+const storage = require("../src/services/storage");
 
 let mongoServer;
 
@@ -27,11 +30,13 @@ beforeAll(async () => {
   // Build indexes (e.g. the unique email index) before any test relies on them.
   await User.init();
   await Application.init();
+  await ApplicationFile.init();
 });
 
 afterEach(async () => {
   const collections = await mongoose.connection.db.collections();
   await Promise.all(collections.map((collection) => collection.deleteMany({})));
+  storage._clear();
 });
 
 afterAll(async () => {
