@@ -26,6 +26,7 @@ const {
   SMTP_SECURE,
   EMAIL_FROM,
   EMAIL_REPLY_TO,
+  APP_URL,
   VERIFY_TOKEN_TTL_HOURS,
   RESET_TOKEN_TTL_MINUTES,
 } = process.env;
@@ -144,6 +145,9 @@ module.exports = {
   // drivers require an explicit EMAIL_FROM (validated above).
   emailFrom: EMAIL_FROM || "CareerPilot <no-reply@careerpilot.local>",
   emailReplyTo: EMAIL_REPLY_TO,
+  // Frontend base URL used to build links inside emails (verification, reset).
+  // Trailing slashes are stripped so link building can safely append paths.
+  appUrl: (APP_URL || "http://localhost:5173").replace(/\/+$/, ""),
   resendApiKey: RESEND_API_KEY,
   smtp: {
     host: SMTP_HOST,

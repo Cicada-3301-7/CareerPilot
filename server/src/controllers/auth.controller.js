@@ -3,6 +3,8 @@ const User = require("../models/User");
 const env = require("../config/env");
 const AppError = require("../utils/AppError");
 const asyncHandler = require("../utils/asyncHandler");
+const { consumeToken } = require("../services/token.service");
+const { sendWelcomeEmail, sendVerificationEmail } = require("../services/email/auth.emails");
 
 const signToken = (user) =>
   jwt.sign(
@@ -28,6 +30,17 @@ const register = asyncHandler(async (req, res) => {
   }
 
   const user = await User.create({ name, email, password });
+
+  // Email failures must never fail registration — the account already exists,
+  // and the user can resend verification later. Awaited (not fire-and-forget)
+  // so behavior is deterministic; .catch keeps failures out of the response.
+  await sendWelcomeEmail(user).catch((err) =>
+    console.error("Failed to send welcome email:", err.message)
+  );
+  await sendVerificationEmail(user).catch((err) =>
+    console.error("Failed to send verification email:", err.message)
+  );
+
   const token = signToken(user);
 
   return res.status(201).json({ token, user: safeUser(user) });
@@ -71,4 +84,42 @@ const logoutAll = asyncHandler(async (req, res) => {
   return res.status(200).json({ message: "Logged out of all sessions" });
 });
 
-module.exports = { register, login, me, logoutAll };
+const verifyEmail = asyncHandler(async (req, res) => {
+  // consumeToken enforces type, expiry and single-use atomically; every
+  // failure mode collapses into null so the error can't leak which one it was.
+  const authToken = await consumeToken(req.body.token, "verify_email");
+  if (!authToken) {
+    throw new AppError("Invalid or expired verification link", 400);
+  }
+
+  // The { $ne: true } guard keeps the original emailVerifiedAt if the account
+  // is somehow already verified (a second link issued before the first was
+  // used); the endpoint stays idempotent either way.
+  await User.updateOne(
+    { _id: authToken.userId, emailVerified: { $ne: true } },
+    { $set: { emailVerified: true, emailVerifiedAt: new Date() } }
+  );
+
+  return res.status(200).json({ message: "Email verified successfully" });
+});
+
+const resendVerification = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.userId);
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+
+  if (user.emailVerified) {
+    return res.status(200).json({ message: "Email is already verified" });
+  }
+
+  // Same policy as registration: a provider outage should read as "try again
+  // shortly", never as a server error.
+  await sendVerificationEmail(user).catch((err) =>
+    console.error("Failed to send verification email:", err.message)
+  );
+
+  return res.status(200).json({ message: "Verification email sent" });
+});
+
+module.exports = { register, login, me, logoutAll, verifyEmail, resendVerification };

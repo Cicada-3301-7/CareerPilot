@@ -22,4 +22,14 @@ const loginSchema = z.object({
   password: z.string({ error: () => REQUIRED_LOGIN }).min(1, REQUIRED_LOGIN),
 });
 
-module.exports = { registerSchema, loginSchema };
+const verifyEmailSchema = z.strictObject({
+  token: z
+    .string({ error: () => "Verification token is required" })
+    .min(1, "Verification token is required"),
+});
+
+// The endpoint takes no input; strictObject still rejects junk fields so the
+// route can't be used to smuggle parameters.
+const resendVerificationSchema = z.strictObject({});
+
+module.exports = { registerSchema, loginSchema, verifyEmailSchema, resendVerificationSchema };
