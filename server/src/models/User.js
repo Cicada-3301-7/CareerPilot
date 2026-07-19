@@ -34,6 +34,18 @@ const userSchema = new mongoose.Schema(
       enum: ["user", "admin"],
       default: "user",
     },
+    // Email ownership confirmation. Purely informational for now — login is
+    // never blocked on it. Pre-existing documents lack this field, so queries
+    // must use { emailVerified: { $ne: true } } for "unverified" — DB filters
+    // do not apply schema defaults, only hydration does.
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerifiedAt: {
+      type: Date,
+      default: null,
+    },
     // Reversible account lifecycle. Pre-existing documents lack this field,
     // so queries must treat "active" as { $ne: "suspended" } — DB filters do
     // not apply schema defaults, only hydration does.

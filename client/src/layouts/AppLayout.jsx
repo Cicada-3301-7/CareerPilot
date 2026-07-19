@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import Sidebar from "../components/layout/Sidebar";
 import Topbar from "../components/layout/Topbar";
+import VerifyEmailBanner from "../components/VerifyEmailBanner";
 
 function AppLayout() {
   const { user, logout } = useAuth();
@@ -68,6 +69,7 @@ function AppLayout() {
         />
 
         <main id="main-content" className="app-content">
+          <VerifyEmailBanner />
           <Outlet />
         </main>
       </div>

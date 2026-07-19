@@ -1,7 +1,8 @@
-const request = require("supertest");
+﻿const request = require("supertest");
 const jwt = require("jsonwebtoken");
 const app = require("../src/app");
 const User = require("../src/models/User");
+const helpers = require("./helpers/auth.helpers");
 
 const VALID_USER = {
   name: "Test User",
@@ -9,25 +10,12 @@ const VALID_USER = {
   password: "longenough1",
 };
 
-// Rate limiting is keyed by req.ip and trust proxy is enabled, so a unique
-// X-Forwarded-For per call keeps tests out of each other's rate-limit buckets.
-let ipCounter = 0;
-const uniqueIp = () => {
-  ipCounter += 1;
-  return `10.1.${Math.floor(ipCounter / 250)}.${(ipCounter % 250) + 1}`;
-};
+// Mechanics (unique IPs, request building) live in helpers/auth.helpers.js;
+// these adapters just bind this suite's fixture user.
+const register = (overrides = {}, ip) =>
+  helpers.register({ ...VALID_USER, ...overrides }, ip);
 
-const register = (overrides = {}, ip = uniqueIp()) =>
-  request(app)
-    .post("/api/auth/register")
-    .set("X-Forwarded-For", ip)
-    .send({ ...VALID_USER, ...overrides });
-
-const login = (credentials, ip = uniqueIp()) =>
-  request(app)
-    .post("/api/auth/login")
-    .set("X-Forwarded-For", ip)
-    .send(credentials);
+const { login } = helpers;
 
 describe("POST /api/auth/register", () => {
   test("rejects missing fields", async () => {
@@ -53,7 +41,7 @@ describe("POST /api/auth/register", () => {
     expect(res.status).toBe(201);
     expect(typeof res.body.token).toBe("string");
     expect(res.body.token.length).toBeGreaterThan(0);
-    expect(Object.keys(res.body.user).sort()).toEqual(["_id", "createdAt", "email", "name", "role"]);
+    expect(Object.keys(res.body.user).sort()).toEqual(["_id", "createdAt", "email", "emailVerified", "name", "role"]);
     expect(res.body.user.name).toBe(VALID_USER.name);
     expect(res.body.user.email).toBe(VALID_USER.email);
     expect(res.body.user).not.toHaveProperty("password");
@@ -105,7 +93,7 @@ describe("POST /api/auth/login", () => {
     const res = await login({ email: VALID_USER.email, password: VALID_USER.password });
     expect(res.status).toBe(200);
     expect(typeof res.body.token).toBe("string");
-    expect(Object.keys(res.body.user).sort()).toEqual(["_id", "createdAt", "email", "name", "role"]);
+    expect(Object.keys(res.body.user).sort()).toEqual(["_id", "createdAt", "email", "emailVerified", "name", "role"]);
     expect(res.body.user).not.toHaveProperty("password");
   });
 
@@ -124,7 +112,7 @@ describe("GET /api/auth/me", () => {
       .set("Authorization", `Bearer ${registered.body.token}`);
     expect(res.status).toBe(200);
     expect(res.body.user._id).toBe(registered.body.user._id);
-    expect(Object.keys(res.body.user).sort()).toEqual(["_id", "createdAt", "email", "name", "role"]);
+    expect(Object.keys(res.body.user).sort()).toEqual(["_id", "createdAt", "email", "emailVerified", "name", "role"]);
   });
 
   test("rejects a missing Authorization header", async () => {

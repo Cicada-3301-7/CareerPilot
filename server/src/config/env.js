@@ -17,6 +17,18 @@ const {
   S3_FORCE_PATH_STYLE,
   MAX_FILE_SIZE,
   MAX_FILES_PER_APPLICATION,
+  EMAIL_DRIVER,
+  RESEND_API_KEY,
+  SMTP_HOST,
+  SMTP_PORT,
+  SMTP_USER,
+  SMTP_PASS,
+  SMTP_SECURE,
+  EMAIL_FROM,
+  EMAIL_REPLY_TO,
+  APP_URL,
+  VERIFY_TOKEN_TTL_HOURS,
+  RESET_TOKEN_TTL_MINUTES,
 } = process.env;
 
 if (!MONGODB_URI) {
@@ -64,6 +76,42 @@ if (nodeEnv === "production" && storageDriver === "local") {
   );
 }
 
+// Email driver selection. Mirrors the storage driver pattern, but defaults to
+// "console" (messages printed to the terminal) everywhere except tests, so an
+// existing deployment without email configuration keeps booting — production
+// operators opt in explicitly with EMAIL_DRIVER=resend or smtp.
+const emailDriver = EMAIL_DRIVER || (nodeEnv === "test" ? "memory" : "console");
+
+if (!["resend", "smtp", "console", "memory"].includes(emailDriver)) {
+  console.error(
+    `Unknown EMAIL_DRIVER "${emailDriver}". Use "resend", "smtp", "console", or "memory".`
+  );
+  process.exit(1);
+}
+
+if (emailDriver === "resend" && !RESEND_API_KEY) {
+  console.error("EMAIL_DRIVER=resend requires RESEND_API_KEY. Add it to server/.env.");
+  process.exit(1);
+}
+
+if (emailDriver === "smtp" && !SMTP_HOST) {
+  console.error("EMAIL_DRIVER=smtp requires SMTP_HOST. Add it to server/.env.");
+  process.exit(1);
+}
+
+if (["resend", "smtp"].includes(emailDriver) && !EMAIL_FROM) {
+  console.error(
+    `EMAIL_DRIVER=${emailDriver} requires EMAIL_FROM (e.g. "CareerPilot <no-reply@yourdomain.com>"). Add it to server/.env.`
+  );
+  process.exit(1);
+}
+
+if (nodeEnv === "production" && emailDriver === "console") {
+  console.warn(
+    "Warning: EMAIL_DRIVER=console in production. Emails are only printed to logs — set EMAIL_DRIVER=resend or smtp."
+  );
+}
+
 // Upload limits are env-tunable so operators never have to touch code.
 const parsePositiveInt = (raw, fallback, name) => {
   if (raw === undefined || raw === "") return fallback;
@@ -92,4 +140,22 @@ module.exports = {
   },
   maxFileSize: parsePositiveInt(MAX_FILE_SIZE, 5 * 1024 * 1024, "MAX_FILE_SIZE"),
   maxFilesPerApplication: parsePositiveInt(MAX_FILES_PER_APPLICATION, 10, "MAX_FILES_PER_APPLICATION"),
+  emailDriver,
+  // Default sender only matters for the console/memory drivers — the real
+  // drivers require an explicit EMAIL_FROM (validated above).
+  emailFrom: EMAIL_FROM || "CareerPilot <no-reply@careerpilot.local>",
+  emailReplyTo: EMAIL_REPLY_TO,
+  // Frontend base URL used to build links inside emails (verification, reset).
+  // Trailing slashes are stripped so link building can safely append paths.
+  appUrl: (APP_URL || "http://localhost:5173").replace(/\/+$/, ""),
+  resendApiKey: RESEND_API_KEY,
+  smtp: {
+    host: SMTP_HOST,
+    port: parsePositiveInt(SMTP_PORT, 587, "SMTP_PORT"),
+    user: SMTP_USER,
+    pass: SMTP_PASS,
+    secure: SMTP_SECURE === "true",
+  },
+  verifyTokenTtlHours: parsePositiveInt(VERIFY_TOKEN_TTL_HOURS, 24, "VERIFY_TOKEN_TTL_HOURS"),
+  resetTokenTtlMinutes: parsePositiveInt(RESET_TOKEN_TTL_MINUTES, 30, "RESET_TOKEN_TTL_MINUTES"),
 };

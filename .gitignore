@@ -8,4 +8,5 @@ dist/
 server/uploads/
 
 CAREERPILOT_IMPLEMENTATION_PLAN.md
-.claude/
+.claude
+docs
