@@ -4,6 +4,16 @@ const User = require("../src/models/User");
 const AuthToken = require("../src/models/AuthToken");
 const memoryDriver = require("../src/services/email/drivers/memory.driver");
 const { issueToken } = require("../src/services/token.service");
+const {
+  uniqueIp,
+  register,
+  SUBJECTS,
+  findEmail,
+  waitFor,
+  waitForEmail,
+  waitForRegistrationEmails,
+  tokenFromEmail,
+} = require("./helpers/auth.helpers");
 
 const VALID_USER = {
   name: "Verify User",
@@ -11,19 +21,14 @@ const VALID_USER = {
   password: "longenough1",
 };
 
-// Rate limiting is keyed by req.ip and trust proxy is enabled, so a unique
-// X-Forwarded-For per call keeps tests out of each other's rate-limit buckets.
-let ipCounter = 0;
-const uniqueIp = () => {
-  ipCounter += 1;
-  return `10.2.${Math.floor(ipCounter / 250)}.${(ipCounter % 250) + 1}`;
+// Registers and waits for both background emails to land, so later steps (and
+// the afterEach outbox wipe) can never race a straggling send.
+const registerUser = async (overrides = {}) => {
+  const res = await register({ ...VALID_USER, ...overrides });
+  expect(res.status).toBe(201);
+  await waitForRegistrationEmails(res.body.user.email);
+  return res;
 };
-
-const register = (overrides = {}) =>
-  request(app)
-    .post("/api/auth/register")
-    .set("X-Forwarded-For", uniqueIp())
-    .send({ ...VALID_USER, ...overrides });
 
 const verifyEmail = (body) =>
   request(app)
@@ -38,26 +43,17 @@ const resendVerification = (jwt) => {
   return jwt ? req.set("Authorization", `Bearer ${jwt}`).send({}) : req.send({});
 };
 
-// The raw token only exists inside the emailed link.
-const tokenFromEmail = (message) => message.text.match(/token=([A-Za-z0-9_-]+)/)[1];
-
-const verificationEmailFor = (email) =>
-  memoryDriver._outbox.find(
-    (m) => m.to === email && m.subject === "Verify your CareerPilot email address"
-  );
-
 describe("registration emails", () => {
   test("sends a welcome and a verification email on register", async () => {
-    const res = await register();
-    expect(res.status).toBe(201);
+    await registerUser();
 
     const toUser = memoryDriver._outbox.filter((m) => m.to === VALID_USER.email);
     expect(toUser.map((m) => m.subject).sort()).toEqual([
-      "Verify your CareerPilot email address",
-      "Welcome to CareerPilot",
+      SUBJECTS.verification,
+      SUBJECTS.welcome,
     ]);
 
-    const verification = verificationEmailFor(VALID_USER.email);
+    const verification = findEmail(VALID_USER.email, SUBJECTS.verification);
     expect(verification.text).toMatch(/\/verify-email\?token=[A-Za-z0-9_-]+/);
     expect(verification.html).toContain("/verify-email?token=");
   });
@@ -68,20 +64,24 @@ describe("registration emails", () => {
       .mockRejectedValue(new Error("provider down"));
     const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     try {
-      const res = await register();
+      const res = await register(VALID_USER);
       expect(res.status).toBe(201);
       expect(typeof res.body.token).toBe("string");
 
       const user = await User.findOne({ email: VALID_USER.email });
       expect(user).not.toBeNull();
-      expect(errorSpy).toHaveBeenCalledWith(
-        "Failed to send welcome email:",
-        "provider down"
+
+      // Failures are logged in the background with full context.
+      await waitFor(
+        () =>
+          errorSpy.mock.calls.some((c) => String(c[0]).includes("welcome")) &&
+          errorSpy.mock.calls.some((c) => String(c[0]).includes("verification"))
       );
-      expect(errorSpy).toHaveBeenCalledWith(
-        "Failed to send verification email:",
-        "provider down"
-      );
+      const logged = errorSpy.mock.calls.map((c) => String(c[0]));
+      const welcomeLine = logged.find((l) => l.includes("welcome"));
+      expect(welcomeLine).toContain(`user=${user._id}`);
+      expect(welcomeLine).toContain(`to=${VALID_USER.email}`);
+      expect(welcomeLine).toContain("provider down");
     } finally {
       sendSpy.mockRestore();
       errorSpy.mockRestore();
@@ -89,14 +89,14 @@ describe("registration emails", () => {
   });
 
   test("a new user starts unverified", async () => {
-    await register();
+    await registerUser();
     const user = await User.findOne({ email: VALID_USER.email });
     expect(user.emailVerified).toBe(false);
     expect(user.emailVerifiedAt).toBeNull();
   });
 
   test("registration response shape is unchanged", async () => {
-    const res = await register();
+    const res = await registerUser();
     expect(Object.keys(res.body.user).sort()).toEqual([
       "_id",
       "createdAt",
@@ -109,8 +109,8 @@ describe("registration emails", () => {
 
 describe("POST /api/auth/verify-email", () => {
   test("verifies the account with a valid token", async () => {
-    await register();
-    const token = tokenFromEmail(verificationEmailFor(VALID_USER.email));
+    await registerUser();
+    const token = tokenFromEmail(findEmail(VALID_USER.email, SUBJECTS.verification));
 
     const res = await verifyEmail({ token });
     expect(res.status).toBe(200);
@@ -134,8 +134,8 @@ describe("POST /api/auth/verify-email", () => {
   });
 
   test("rejects an expired token and leaves the user unverified", async () => {
-    await register();
-    const token = tokenFromEmail(verificationEmailFor(VALID_USER.email));
+    await registerUser();
+    const token = tokenFromEmail(findEmail(VALID_USER.email, SUBJECTS.verification));
     await AuthToken.updateMany({}, { $set: { expiresAt: new Date(Date.now() - 1000) } });
 
     const res = await verifyEmail({ token });
@@ -146,8 +146,8 @@ describe("POST /api/auth/verify-email", () => {
   });
 
   test("rejects a reused token", async () => {
-    await register();
-    const token = tokenFromEmail(verificationEmailFor(VALID_USER.email));
+    await registerUser();
+    const token = tokenFromEmail(findEmail(VALID_USER.email, SUBJECTS.verification));
 
     expect((await verifyEmail({ token })).status).toBe(200);
     const replay = await verifyEmail({ token });
@@ -156,7 +156,7 @@ describe("POST /api/auth/verify-email", () => {
   });
 
   test("rejects a token of the wrong type", async () => {
-    await register();
+    await registerUser();
     const user = await User.findOne({ email: VALID_USER.email });
     const { token } = await issueToken(user._id, "password_reset");
 
@@ -175,24 +175,26 @@ describe("POST /api/auth/resend-verification", () => {
   });
 
   test("sends a fresh verification email", async () => {
-    const { body } = await register();
+    const { body } = await registerUser();
     memoryDriver._clear();
 
     const res = await resendVerification(body.token);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ message: "Verification email sent" });
 
+    await waitForEmail(VALID_USER.email, SUBJECTS.verification);
     expect(memoryDriver._outbox).toHaveLength(1);
-    expect(memoryDriver._outbox[0].subject).toBe("Verify your CareerPilot email address");
   });
 
   test("invalidates the previous token; only the newest link works", async () => {
-    const { body } = await register();
-    const oldToken = tokenFromEmail(verificationEmailFor(VALID_USER.email));
+    const { body } = await registerUser();
+    const oldToken = tokenFromEmail(findEmail(VALID_USER.email, SUBJECTS.verification));
     memoryDriver._clear();
 
     await resendVerification(body.token);
-    const newToken = tokenFromEmail(verificationEmailFor(VALID_USER.email));
+    const newToken = tokenFromEmail(
+      await waitForEmail(VALID_USER.email, SUBJECTS.verification)
+    );
 
     expect(newToken).not.toBe(oldToken);
     expect((await verifyEmail({ token: oldToken })).status).toBe(400);
@@ -200,8 +202,8 @@ describe("POST /api/auth/resend-verification", () => {
   });
 
   test("reports an already verified account without sending email", async () => {
-    const { body } = await register();
-    const token = tokenFromEmail(verificationEmailFor(VALID_USER.email));
+    const { body } = await registerUser();
+    const token = tokenFromEmail(findEmail(VALID_USER.email, SUBJECTS.verification));
     await verifyEmail({ token });
     memoryDriver._clear();
 
@@ -212,7 +214,7 @@ describe("POST /api/auth/resend-verification", () => {
   });
 
   test("rejects unexpected body fields", async () => {
-    const { body } = await register();
+    const { body } = await registerUser();
     const res = await request(app)
       .post("/api/auth/resend-verification")
       .set("X-Forwarded-For", uniqueIp())

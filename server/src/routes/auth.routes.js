@@ -7,12 +7,16 @@ const {
   loginLimiter,
   verifyEmailLimiter,
   resendVerificationLimiter,
+  forgotPasswordLimiter,
+  resetPasswordLimiter,
 } = require("../middleware/rateLimiter");
 const {
   registerSchema,
   loginSchema,
   verifyEmailSchema,
   resendVerificationSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } = require("../validators/auth.validators");
 
 const router = express.Router();
@@ -34,6 +38,19 @@ router.post(
   authenticate,
   validate(resendVerificationSchema),
   authController.resendVerification
+);
+// Public by nature: both are reached from an email link, signed out.
+router.post(
+  "/forgot-password",
+  forgotPasswordLimiter,
+  validate(forgotPasswordSchema),
+  authController.forgotPassword
+);
+router.post(
+  "/reset-password",
+  resetPasswordLimiter,
+  validate(resetPasswordSchema),
+  authController.resetPassword
 );
 
 module.exports = router;

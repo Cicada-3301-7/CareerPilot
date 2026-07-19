@@ -2,6 +2,7 @@ const request = require("supertest");
 const jwt = require("jsonwebtoken");
 const app = require("../src/app");
 const User = require("../src/models/User");
+const helpers = require("./helpers/auth.helpers");
 
 const VALID_USER = {
   name: "Test User",
@@ -9,25 +10,12 @@ const VALID_USER = {
   password: "longenough1",
 };
 
-// Rate limiting is keyed by req.ip and trust proxy is enabled, so a unique
-// X-Forwarded-For per call keeps tests out of each other's rate-limit buckets.
-let ipCounter = 0;
-const uniqueIp = () => {
-  ipCounter += 1;
-  return `10.1.${Math.floor(ipCounter / 250)}.${(ipCounter % 250) + 1}`;
-};
+// Mechanics (unique IPs, request building) live in helpers/auth.helpers.js;
+// these adapters just bind this suite's fixture user.
+const register = (overrides = {}, ip) =>
+  helpers.register({ ...VALID_USER, ...overrides }, ip);
 
-const register = (overrides = {}, ip = uniqueIp()) =>
-  request(app)
-    .post("/api/auth/register")
-    .set("X-Forwarded-For", ip)
-    .send({ ...VALID_USER, ...overrides });
-
-const login = (credentials, ip = uniqueIp()) =>
-  request(app)
-    .post("/api/auth/login")
-    .set("X-Forwarded-For", ip)
-    .send(credentials);
+const { login } = helpers;
 
 describe("POST /api/auth/register", () => {
   test("rejects missing fields", async () => {
