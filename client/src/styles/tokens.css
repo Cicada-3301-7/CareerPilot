@@ -78,6 +78,11 @@
   --warning-bg: #fdf4dd;
   --warning-border: #eeda9f;
 
+  /* Success */
+  --success-text: #2f6b46;
+  --success-bg: #e9f5ee;
+  --success-border: #c8e5d3;
+
   /* Typography */
   --font-body: "DM Sans", system-ui, sans-serif;
   --font-display: "Manrope", system-ui, sans-serif;

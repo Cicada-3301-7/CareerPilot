@@ -65,6 +65,15 @@ export function AuthProvider({ children }) {
     setStatus("unauthenticated");
   }, []);
 
+  // Re-fetches the server's view of the user (e.g. right after email
+  // verification) so state like the verify banner updates without a reload.
+  const refreshUser = useCallback(async () => {
+    const freshUser = await authApi.me();
+    localStorage.setItem(USER_KEY, JSON.stringify(freshUser));
+    setUser(freshUser);
+    return freshUser;
+  }, []);
+
   const clearSessionNotice = useCallback(() => setSessionNotice(""), []);
 
   // Involuntary sign-outs detected by the API layer (expired/revoked token,
@@ -116,11 +125,15 @@ export function AuthProvider({ children }) {
     user,
     status,
     isAdmin: user?.role === "admin",
+    // Boolean() also covers a stale cached cp_user from before this field
+    // existed; the startup /me refresh corrects it either way.
+    emailVerified: Boolean(user?.emailVerified),
     sessionNotice,
     clearSessionNotice,
     login,
     register,
     logout,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

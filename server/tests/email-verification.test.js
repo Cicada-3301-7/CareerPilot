@@ -95,15 +95,17 @@ describe("registration emails", () => {
     expect(user.emailVerifiedAt).toBeNull();
   });
 
-  test("registration response shape is unchanged", async () => {
+  test("registration response exposes emailVerified and nothing sensitive", async () => {
     const res = await registerUser();
     expect(Object.keys(res.body.user).sort()).toEqual([
       "_id",
       "createdAt",
       "email",
+      "emailVerified",
       "name",
       "role",
     ]);
+    expect(res.body.user.emailVerified).toBe(false);
   });
 });
 

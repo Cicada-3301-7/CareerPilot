@@ -24,6 +24,8 @@ const safeUser = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role || "user",
+  // Boolean() covers pre-verification documents that lack the field.
+  emailVerified: Boolean(user.emailVerified),
   createdAt: user.createdAt,
 });
 
